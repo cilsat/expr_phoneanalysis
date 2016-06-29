@@ -45,34 +45,36 @@ def swapPhones(align_file, phones_file):
     read = read[['fil', 'phon', 'loc', 'dur']]
     return spon, read
 
-def calcVowel(v, df):
-    dfsize = 1./df.size
-    dur = df[df['phon'] == v]['dur']
-    f0 = df[df['phon'] == v]['f0']
-    f1 = df[df['phon'] == v]['f1']
-    f2 = df[df['phon'] == v]['f2']
-    f3 = df[df['phon'] == v]['f3']
-    return [dur.size*dfsize*100, dur.mean(), dur.var(), f0.mean(), f0.var(), f1.mean(), f1.var(), f2.mean(), f2.var(), f3.mean(), f3.var()]
+def calcVowel(args):
+    v = args[0]
+    df = args[1]
 
-def calcFeats(df):
+def calcFeats(df, all=False):
     #get vowels
-    vowels = []
-    for p in df['phon'].unique():
-        v = p.split('_')[0]
-        if v.startswith('a') or v.startswith('e') or v.startswith('i') or v.startswith('o') or v.startswith('u') or v.startswith('@'):
-            vowels.append(p)
+    if all:
+        phones = [p for p in df['phon'].unique()]
+    else:
+        phones = []
+        for p in df['phon'].unique():
+            v = p.split('_')[0]
+            if v.startswith('a') or v.startswith('e') or v.startswith('i') or v.startswith('o') or v.startswith('u') or v.startswith('@'):
+                phones.append(p)
 
     # calculate the average/variance of freq, duration, formants 0-4 of each vowel
-    pool = mp.Pool(mp.cpu_count())
-    feats = pool.map(calcVowel, [[v, df] for v in vowels])
-    pool.close()
-    pool.terminate()
-    pool.join()
-    return pd.DataFrame(feats, index=vowels)
+    dfsize = 1./df.size
+    feats = []
+    for p in phones:
+        dur = df[df['phon'] == p]['dur']
+        f0 = df[df['phon'] == p]['f0']
+        f1 = df[df['phon'] == p]['f1']
+        f2 = df[df['phon'] == p]['f2']
+        f3 = df[df['phon'] == p]['f3']
+        feats.append([dur.size*dfsize*100, dur.mean(), dur.var(), f0.mean(), f0.var(), f1.mean(), f1.var(), f2.mean(), f2.var(), f3.mean(), f3.var()])
+    return pd.DataFrame(feats, index=phones)
 
-def calcSR(spon, read):
-    sfeats = calcFeats(spon)
-    rfeats = calcFeats(read)
+def calcSR(spon, read, all):
+    sfeats = calcFeats(spon, all)
+    rfeats = calcFeats(read, all)
     sfeats.rename(columns={0:'sf', 1:'sm', 2:'sv', 3:'sf0m', 4:'sf0v', 5:'sf1m', 6:'sf1v', 7:'sf2m', 8:'sf2v', 9:'sf3m', 10:'sf3v'}, inplace=True)
     rfeats.rename(columns={0:'rf', 1:'rm', 2:'rv', 3:'rf0m', 4:'rf0v', 5:'rf1m', 6:'rf1v', 7:'rf2m', 8:'rf2v', 9:'rf3m', 10:'rf3v'}, inplace=True)
     feats = pd.concat((sfeats, rfeats), axis=1)
