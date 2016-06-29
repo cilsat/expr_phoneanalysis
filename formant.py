@@ -8,7 +8,7 @@ from scipy.signal import filtfilt
 from scipy.signal import butter
 from scikits.talkbox import lpc
 
-def get_frames(args):
+def getFrames(args):
     filename = args[0]
     frame_size = args[1]
     window = args[2]
@@ -54,8 +54,10 @@ def get_frames(args):
 
     return np.array(formant)
 
-if __name__ == "__main__":
-    path = sys.argv[1]
+def procFolder(args):
+    pathin = args[0]
+    pathout = args[1]
+
     ms = 0.01
     sr = 16000
     # get frame size
@@ -65,9 +67,22 @@ if __name__ == "__main__":
     # calc highpass filter coefficients
     b, a = butter(1, 50./(0.5*sr), "highpass")
     # get wav files in specified directory
-    wavs = []
-    [wavs.append(os.path.join(path, f)) for f in os.listdir(path) if f.split('.')[-1] == "wav"]
+    if not os.path.exists(pathout):
+        os.mkdir(pathout)
+    wavsin = []
+    fout = []
+    for f in os.listdir(pathin):
+        if f.split('.')[-1] == "wav":
+            wavsin.append(os.path.join(pathin, f))
+            out = f.replace("wav", "f")
+            fout.append(os.path.join(pathout, out))
 
+    for n, wav in enumerate(wavsin):
+        formants = getFrames([wav, fs, win, [b,a]])
+        with open(fout[n], 'wb') as f:
+            [f.write(','.join(str(ff) for ff in form.tolist())+'\n') for form in formants]
+
+if __name__ == "__main__":
+    path = sys.argv[1]
     pool = mp.Pool(4*mp.cpu_count())
-    args = [[wav, fs, win, [b, a]] for wav in wavs]
-    formants = pool.map(get_frames, args)
+    pool.map(procFolder, os.listdir(path))
