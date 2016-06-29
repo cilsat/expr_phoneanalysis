@@ -45,11 +45,7 @@ def swapPhones(align_file, phones_file):
     read = read[['fil', 'phon', 'loc', 'dur']]
     return spon, read
 
-def calcVowel(args):
-    v = args[0]
-    df = args[1]
-
-def calcFeats(df, all=False):
+def calcFeats(df, name, all=False):
     #get vowels
     if all:
         phones = [p for p in df['phon'].unique()]
@@ -60,23 +56,38 @@ def calcFeats(df, all=False):
             if v.startswith('a') or v.startswith('e') or v.startswith('i') or v.startswith('o') or v.startswith('u') or v.startswith('@'):
                 phones.append(p)
 
+    # calcculate delta formants
+    delf = df.iloc[:,4:].diff()
+    delf.iloc[0,:] = 0
+    delf.rename(columns={'f0':'df0', 'f1':'df1', 'f2':'df2', 'f3':'df3'}, inplace=True)
+    df[delf.columns] = delf
+
     # calculate the average/variance of freq, duration, formants 0-4 of each vowel
     dfsize = 1./df.size
     feats = []
     for p in phones:
-        dur = df[df['phon'] == p]['dur']
-        f0 = df[df['phon'] == p]['f0']
-        f1 = df[df['phon'] == p]['f1']
-        f2 = df[df['phon'] == p]['f2']
-        f3 = df[df['phon'] == p]['f3']
-        feats.append([dur.size*dfsize*100, dur.mean(), dur.var(), f0.mean(), f0.var(), f1.mean(), f1.var(), f2.mean(), f2.var(), f3.mean(), f3.var()])
-    return pd.DataFrame(feats, index=phones)
+        phon = df[df['phon'] == p]
+        num = len(phon.index)
+        fr = num*dfsize*100
+        dm = phon['dur'].mean()
+        dv = phon['dur'].var()
+        fm = phon.loc[:,'f0':'f3'].mean().tolist()
+        fv = phon.loc[:,'f0':'f3'].var().tolist()
+        dfm = phon.loc[:,'df0':'df3'].abs().mean().tolist()
+        dfv = phon.loc[:,'df0':'df3'].abs().var().tolist()
+        feats.append([fr, num, dm, dv]+fm+fv+dfm+dfv)
+    cols = [('occurence', name+'freq'), ('occurence', name+'num'), ('dur', name+'mean'), ('dur', name+'var')]
+    cols += [('formants', name+str(n)+'mean') for n in range(4)]
+    cols += [('formants', name+str(n)+'var') for n in range(4)]
+    cols += [('deltas', name+str(n)+'mean') for n in range(4)]
+    cols += [('deltas', name+str(n)+'var') for n in range(4)]
+    mcols = pd.MultiIndex.from_tuples(cols)
 
-def calcSR(spon, read, all):
-    sfeats = calcFeats(spon, all)
-    rfeats = calcFeats(read, all)
-    sfeats.rename(columns={0:'sf', 1:'sm', 2:'sv', 3:'sf0m', 4:'sf0v', 5:'sf1m', 6:'sf1v', 7:'sf2m', 8:'sf2v', 9:'sf3m', 10:'sf3v'}, inplace=True)
-    rfeats.rename(columns={0:'rf', 1:'rm', 2:'rv', 3:'rf0m', 4:'rf0v', 5:'rf1m', 6:'rf1v', 7:'rf2m', 8:'rf2v', 9:'rf3m', 10:'rf3v'}, inplace=True)
+    return pd.DataFrame(feats, index=phones, columns=mcols)
+
+def calcSR(spon, read, all=False):
+    sfeats = calcFeats(spon, 's', all)
+    rfeats = calcFeats(read, 'r', all)
     feats = pd.concat((sfeats, rfeats), axis=1)
     return feats
 
