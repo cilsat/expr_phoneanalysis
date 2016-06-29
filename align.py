@@ -70,14 +70,13 @@ def calcFeats(df):
     pool.join()
     return pd.DataFrame(feats, index=vowels)
 
-def calcSpontanRead(align_file, phones_file):
-    spon, read = swapPhones(align_file, phones_file)
+def calcSR(spon, read):
     sfeats = calcFeats(spon)
     rfeats = calcFeats(read)
     sfeats.rename(columns={0:'sf', 1:'sm', 2:'sv', 3:'sf0m', 4:'sf0v', 5:'sf1m', 6:'sf1v', 7:'sf2m', 8:'sf2v', 9:'sf3m', 10:'sf3v'}, inplace=True)
     rfeats.rename(columns={0:'rf', 1:'rm', 2:'rv', 3:'rf0m', 4:'rf0v', 5:'rf1m', 6:'rf1v', 7:'rf2m', 8:'rf2v', 9:'rf3m', 10:'rf3v'}, inplace=True)
     feats = pd.concat((sfeats, rfeats), axis=1)
-    return feats, spon, read
+    return feats
 
 def getFrames(args):
     filename = args[0]
@@ -163,30 +162,46 @@ def calcFormants(wavsdir, formdir):
     pool.join()
 
 def procFile(args):
-    f = args[0]
+    split = args[0]
     df = args[1]
     formdir = args[2]
-    timing = df[df['fil'] == f]
-    formants = []
-    for row in open(os.path.join(formdir, f+'.f')).read().split('\n')[:-1]:
-        formants.append([float(num) for num in row.split(',')])
-    formants = np.array(formants)
-    end = formants.shape[0]
-    strides = (timing['loc']*200).get_values().astype(int)
+
     ff = []
-    for i, s in enumerate(strides):
-        e = strides[i+1] if (i+1) < strides.size else end
-        ff.append(np.mean(formants[s:e,:].T,axis=-1))
-    return np.array(ff)
+    for f in split:
+        timing = df[df['fil'] == f]
+        formants = []
+        for row in open(os.path.join(formdir, f+'.f')).read().split('\n')[:-1]:
+            formants.append([float(num) for num in row.split(',')])
+        formants = np.array(formants)
+        end = formants.shape[0]
+        strides = (timing['loc']*200).get_values().astype(int)
+        for i, s in enumerate(strides):
+            e = strides[i+1] if (i+1) < strides.size else end
+            ff.append(np.mean(formants[s:e,:].T,axis=-1))
+    return np.vstack(ff)
 
 def swapFormants(df, formdir):
     files = df['fil'].unique()
+    for f in files:
+        if not os.path.exists(os.path.join(formdir, f+'.f')):
+            print('formant file ' + f + ' does not exist!')
+            sys.exit(1)
+
+    split = []
+    nsplits = mp.cpu_count()
+    s = files.size/nsplits
+    for n in range(nsplits):
+        e = (n+1)*s if (n+1) < nsplits else files.size
+        split.append(files[n*s:e])
+
     pool = mp.Pool(mp.cpu_count())
-    formfeats = pool.map(procFile, [[f, df, formdir] for f in files])
+    formfeats = pool.map(procFile, [[f, df, formdir] for f in split])
     pool.close()
     pool.terminate()
     pool.join()
     formfeats = np.vstack(formfeats)
+    print(formfeats)
+    print(formfeats.shape)
     df['f0'] = formfeats[:,0]
     df['f1'] = formfeats[:,1]
     df['f2'] = formfeats[:,2]
@@ -199,17 +214,22 @@ def main(args):
 
     # check if formants have been calculated
     if not os.path.exists(formdir):
+        print('calculating formants from wavs')
         calcFormants(wavsdir, formdir)
 
     align_file = os.path.join(confdir, 'ali.ctm')
     phones_file = os.path.join(confdir, 'phones.txt')
 
+    print('substituting phone names')
     spon, read = swapPhones(align_file, phones_file)
-
-    formspondir = os.path.join(formdir, 'spon')
-    formreaddir = os.path.join(formdir, 'read')
+    print('aligning spontan formants')
+    swapFormants(spon, formdir)
+    print('aligning read formants')
+    swapFormants(read, formdir)
+    print('calculating per phone features')
+    feats = calcSR(spon, read)
+    print(feats)
 
 if __name__ == "__main__":
     main(sys.argv)
-
 
