@@ -91,29 +91,19 @@ def calcSR(spon, read, all=False):
     feats = pd.concat((sfeats, rfeats), axis=1)
     return feats
 
-def getFrames(args):
-    filename = args[0]
-    frame_size = args[1]
-    window = args[2]
-    filt = args[3]
-
-    sr, dat = read(filename)
+def getFrames(dat, frame_size):
     hop_size = int(frame_size - np.floor(0.5 * frame_size))
-
-    # high pass filter input signal
-    dat = filtfilt(filt[0], filt[1], dat)
     # zeros at beginning (thus center of 1st window should be for sample nr. 0)
     samples = np.append(np.zeros(int(np.floor(frame_size/2.0))), dat)
     # cols for windowing
     cols = int(np.ceil( (len(samples) - frame_size) / float(hop_size))) + 1
     # zeros at end (thus samples can be fully covered by frames)
     samples = np.append(samples, np.zeros(frame_size))
-
     # organize frames into multidimensional matrix
     frames = stride_tricks.as_strided(samples, shape=(cols, frame_size), strides=(samples.strides[0]*hop_size, samples.strides[0])).copy()
-    # apply hanning window
-    frames *= window
+    return frames
 
+def getFormants(frames, sr):
     # calculate number of LPC coefficients to use
     ncoeff = 2 + sr/1000
     # calculate LPC coefficients
@@ -134,21 +124,17 @@ def getFrames(args):
     eig = np.linalg.eigvals(Z)
     arc = np.arctan2(np.imag(eig), np.real(eig))
     [formant.append(sorted(pi2*a[a>0])[:4]) for a in arc]
-
     return np.array(formant)
 
 def procFolder(args):
     pathin = args[0]
     pathout = args[1]
-
-    ms = 0.01
-    sr = 16000
     # get frame size
-    fs = int(ms*sr)
+    fs = 0.01
     # calc hanning window
     win = np.hanning(fs)
     # calc highpass filter coefficients
-    b, a = butter(1, 50./(0.5*sr), "highpass")
+    b, a = butter(1, 50./(0.5*16000), "highpass")
     # get wav files in specified directory
     wavsin = []
     fout = []
@@ -160,9 +146,19 @@ def procFolder(args):
 
     for n, wav in enumerate(wavsin):
         if not os.path.exists(wav): continue
-        formants = getFrames([wav, fs, win, [b,a]])
-        with open(fout[n], 'wb') as f:
-            [f.write(','.join(str(ff) for ff in form.tolist())+'\n') for form in formants]
+        # read wav
+        sr, raw = read(wav)
+        # apply highpass filter
+        raw = filtfilt(b, a, raw) 
+        # get raw frames
+        frames = getFrames(raw, int(fs*sr))
+        # apply hanning window
+        frames *= win
+        # get energy
+        energy = 20.*np.log10(np.mean(np.abs(frames/2**15), axis=-1))
+        # get formants
+        formant = getFormants(frames, sr)
+        # save array
 
 def calcFormants(wavsdir, formdir):
     if not os.path.exists(formdir):
