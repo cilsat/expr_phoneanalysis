@@ -15,37 +15,25 @@ from scipy.signal import butter
 from scikits.talkbox import lpc
 
 def swapPhones(align_file, phones_file):
-    ali = open(align_file).read().split('\n')[:-1]
+    ali = pd.read_csv(align_file, sep=' ', index_col=[0], usecols=[0, 2, 3, 4], header=0, names=['fid', 'time', 'dur', 'phon'])
+    ali = ali[['phon', 'time', 'dur']]
     pho = open(phones_file).read().split('\n')[:-1]
 
     # build dictionary of phones from phones.txt
-    phones = {}
+    phonmap = {}
     for p in pho:
         val, key = p.split()
-        phones[key] = val
+        phonmap[int(key)] = val
 
+    # drop rows which aren't in our considered dataset
+    ali.drop(ali.loc[ali.index.str.len() < 13].index, inplace=True)
+    files = ali.index
     # replace phone number with actual phone
-    spon = []
-    read = []
-    for i, a in enumerate(ali):
-        s = a.split()
-        p = phones[s[-1]]
-        if len(s[0]) == 13:
-            if s[0].find('Z') > 0:
-                spon.append([s[0], float(s[2]), float(s[3]), p])
-            else:
-                read.append([s[0], float(s[2]), float(s[3]), p])
+    ali.phon = ali.phon.map(phonmap)
 
-    # make pandas dataframe of filename, location, duration, and name of phone
-    spon = pd.DataFrame(spon)
-    read = pd.DataFrame(read)
-    spon.rename(columns={0:'fil', 1:'loc', 2:'dur', 3:'phon'}, inplace=True)
-    read.rename(columns={0:'fil', 1:'loc', 2:'dur', 3:'phon'}, inplace=True)
-    spon = spon[['fil', 'phon', 'loc', 'dur']]
-    read = read[['fil', 'phon', 'loc', 'dur']]
-    return spon, read
+    return ali
 
-def calcFeats(df, name, all=False):
+def calcPhoneFeats(df, name, all=False):
     #get vowels
     if all:
         phones = [p for p in df['phon'].unique()]
@@ -85,12 +73,6 @@ def calcFeats(df, name, all=False):
 
     return pd.DataFrame(feats, index=phones, columns=mcols)
 
-def calcSR(spon, read, all=False):
-    sfeats = calcFeats(spon, 's', all)
-    rfeats = calcFeats(read, 'r', all)
-    feats = pd.concat((sfeats, rfeats), axis=1)
-    return feats
-
 def getFrames(dat, frame_size):
     hop_size = int(frame_size - np.floor(0.5 * frame_size))
     # zeros at beginning (thus center of 1st window should be for sample nr. 0)
@@ -109,112 +91,261 @@ def getFormants(frames, sr):
     # calculate LPC coefficients
     c = lpc(frames, ncoeff)[0]
     # obtain roots of LPC
-    pi2 = 0.5*sr/np.pi
-    formant = []
-    """
-    for co in c:
-        roots = np.roots(co)
-        roots = [r for r in roots if np.imag(r) > 0]
-        ang = np.arctan2(np.imag(roots), np.real(roots))
-        formant.append(sorted(ang*pi2)[:4])
-    """
     A = np.diag(np.ones((c.shape[1]-2,), float), -1)
     cs = -c[:,1:]
     Z = np.array([np.vstack((cp, A[1:])) for cp in cs])
+    # root calculation using eigen method: VERY SLOW
     eig = np.linalg.eigvals(Z)
     arc = np.arctan2(np.imag(eig), np.real(eig))
+    # convert to Hz and sort ascending
+    formant = []
+    pi2 = 0.05*sr/np.pi
     [formant.append(sorted(pi2*a[a>0])[:4]) for a in arc]
+
     return np.array(formant)
 
-def procFolder(args):
-    pathin = args[0]
-    pathout = args[1]
+def calcWaveFeats(filename, fs, win, b, a):
+    # read wav
+    sr, raw = read(filename)
+    # apply highpass filter
+    raw = filtfilt(b, a, raw)
+    # get raw frames
+    frames = getFrames(raw, fs)
+    # apply hanning window
+    frames *= win
+    # get energy
+    energy = np.mean(np.abs(frames/2**15), axis=-1)
+    # get formants
+    formant = getFormants(frames, sr)
+    # stack and append
+    wavfeat = np.vstack((formant.T, energy.T))
+
+    return wavfeat
+
+def procDirMfc(args):
+    wavpath, df, phones = args
+    # get wav files in specified directory
+    wavsin = []
+    argout = []
+    for dirpath,_,filename in os.walk(wavpath):
+        wavsin.extend([os.path.join(dirpath,f) for f in filename if f.split('.')[-1] == 'wav'])
+        argout.extend([f.replace('.wav','') for f in filename if f.split('.')[-1] == 'wav'])
+    paths = dict(zip(argout, wavsin))
+    # filter both ways to ensure only files that exist on both dataframes are
+    # processed
+    try:
+        dfspk = df.loc[argout].dropna()
+    except:
+        print('no files found in ' + wavpath)
+        return
+    files = dfspk.index.unique()
+    mfcdict = np.load('data/' + files[0][:9] + '.npz')
+
+    feats = []
+    for n, f in enumerate(files):
+        path = paths[f]
+        if not os.path.exists(path): continue
+        # calc wave feats: f0-f4 + energy: this is VERY SLOW
+        try:
+            wavfeat = mfcdict[f]
+        except:
+            print(f + ' MFCC features not found')
+            continue
+        wavfeat = wavfeat[::-1]
+        # align formant to phone data
+        timing = dfspk.loc[f].time
+        try:
+            strides = (100.*(timing.get_values())).astype(int)
+        except:
+            print(f + ' has only one phone')
+            continue
+        end = wavfeat.shape[-1]
+        missing = end-strides[-1]
+        falign = []
+        for i, s in enumerate(strides):
+            e = strides[i+1] if (i+1) < strides.size else end
+            falign.append(np.mean(wavfeat[:,s:e], axis=-1))
+        falign = np.vstack(falign)
+        feats.extend(np.vstack(falign))
+
+    feats = np.array(feats)
+    numfeats = feats.shape[1]
+    # delta wave features: average distance of a phone from the succeeding
+    # phone
+    delfeats = np.sum(np.square(np.diff(feats[:, :-1],axis=0)),axis=-1)**0.5
+    delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
+    feats = np.concatenate((feats, delfeats), axis=1)
+    newcols = [str(n) for n in range(numfeats+1)]
+    for n in range(len(newcols)):
+        dfspk[newcols[n]] = feats[:,n]
+
+    # calculate per phone per spontan/read stats
+    dfspon = dfspk.loc[[f for f in files if f.find('Z') > 0]]
+    dfread = dfspk.loc[[f for f in files if f.find('Z') < 0]]
+    dfsponsz = dfspon.index.size
+    dfreadsz = dfread.index.size
+    phonfeats = []
+    phones = [p for p in phones if p in dfspon.phon.unique() and p in dfread.phon.unique()]
+    for p in phones:
+        # gather per phone data for spon/read: leave out phone name and time
+        dfsponp = dfspon.ix[dfspon.phon == p, 2:]
+        dfreadp = dfread.ix[dfread.phon == p, 2:]
+        # calculate phone frequency of occurence for spon/read
+        ns = float(dfsponp.index.size)/dfsponsz
+        nr = float(dfreadp.index.size)/dfreadsz
+        # calculate per phone means for spon/read, and stack
+        diffp = dfsponp.mean().values - dfreadp.mean().values
+        # finally, calculate differences between spon/read features
+        # from left to right: duration, wave features, energy, delta features,
+        # delta energy
+        deldur = diffp[0]
+        # for wave features (formant/mfcc), calculate euclidian distance
+        # between spon and read means
+        delf = np.sum(np.square(diffp[1:numfeats]))**0.5
+        deldelf = diffp[-1]
+        # for energy, subtract for mfcc (because it's log), calculate decibel
+        # if formant
+        deleng = diffp[numfeats]
+        # append results
+        phonfeats.append([ns, nr, deldur, delf, deleng, deldelf])
+
+    # return processed features
+    #return pd.DataFrame(phonfeats, index=phones, columns=['ns', 'nr', 'dur', 'fdist', 'energy', 'delfdist'])
+    return np.vstack(phonfeats)
+
+def procDir(args):
+    pathin, pathout, df, phones, features, overwrite = args
+
     # get frame size
-    fs = 0.01
+    sr = 16000        # samplerate
+    fss = 0.01        # framesize in seconds
+    hpf = 50.         # highpass freq in Hz
+    fs = int(fss*sr)  # framesize in samples
     # calc hanning window
     win = np.hanning(fs)
     # calc highpass filter coefficients
-    b, a = butter(1, 50./(0.5*16000), "highpass")
+    b, a = butter(1, 50./(0.5*sr), "highpass")
     # get wav files in specified directory
     wavsin = []
-    fout = []
-    for f in os.listdir(pathin):
-        if f.split('.')[-1] == "wav":
-            wavsin.append(os.path.join(pathin, f))
-            out = f.replace("wav", "f")
-            fout.append(os.path.join(pathout, out))
+    argout = []
+    for dirpath,_,filename in os.walk(pathin):
+        wavsin.extend([os.path.join(dirpath,f) for f in filename if f.split('.')[-1] == 'wav'])
+        argout.extend([f.replace('.wav','') for f in filename if f.split('.')[-1] == 'wav'])
+    paths = dict(zip(argout, wavsin))
 
-    for n, wav in enumerate(wavsin):
-        if not os.path.exists(wav): continue
-        # read wav
-        sr, raw = read(wav)
-        # apply highpass filter
-        raw = filtfilt(b, a, raw) 
-        # get raw frames
-        frames = getFrames(raw, int(fs*sr))
-        # apply hanning window
-        frames *= win
-        # get energy
-        energy = 20.*np.log10(np.mean(np.abs(frames/2**15), axis=-1))
-        # get formants
-        formant = getFormants(frames, sr)
-        # save array
+    # filter both ways to ensure only files that exist on both dataframes are
+    # processed
+    try:
+        dfspk = df.loc[argout].dropna()
+    except:
+        return
+    files = dfspk.index.unique()
 
-def calcFormants(wavsdir, formdir):
-    if not os.path.exists(formdir):
-        os.mkdir(formdir)
-    pool = mp.Pool(mp.cpu_count())
-    args = [[d, formdir] for d in wavsdir if os.path.exists(d)]
-    pool.map(procFolder, args)
-    pool.close()
-    pool.terminate()
-    pool.join()
+    # if we've calculated the wave feats before, load the file containing
+    # the features dictionary
+    saved = False
+    fileout = os.path.join(pathout, os.path.split(pathin)[-1]) + '.npz'
+    if not overwrite:
+        saved = True
+        if features == 'formant':
+            if os.path.exists(fileout):
+                featdict = np.load(fileout)
+            else:
+                saved = False
+                wavfeats = {}
+        elif features == 'mfcc':
+            featdict = np.load('feats-inti.npz')
+    else:
+        wavfeats = {}
 
-def procFile(args):
-    split = args[0]
-    df = args[1]
-    formdir = args[2]
-
-    ff = []
-    for f in split:
-        timing = df[df['fil'] == f]
-        formants = []
-        for row in open(os.path.join(formdir, f+'.f')).read().split('\n')[:-1]:
-            formants.append([float(num) for num in row.split(',')])
-        formants = np.array(formants)
-        end = formants.shape[0]
-        strides = (timing['loc']*200).get_values().astype(int)
+    feats = []
+    for n, f in enumerate(files):
+        path = paths[f]
+        if not os.path.exists(path): continue
+        # calc wave feats: f0-f4 + energy: this is VERY SLOW
+        if not saved and features == 'formant':
+            wavfeat = calcWaveFeats(path, fs, win, b, a)
+            wavfeats[f] = wavfeat
+        else:
+            # if already calculated, load from dict
+            wavfeat = featdict[f]
+            if features == 'mfcc': wavfeat = wavfeat[::-1]
+        # align formant to phone data
+        timing = dfspk.loc[f].time
+        foffset = 200. if features == 'formant' else 100.
+        strides = (foffset*(timing.get_values())).astype(int)
+        end = wavfeat.shape[-1]
+        falign = []
         for i, s in enumerate(strides):
             e = strides[i+1] if (i+1) < strides.size else end
-            ff.append(np.mean(formants[s:e,:].T,axis=-1))
-    return np.vstack(ff)
+            falign.append(np.mean(wavfeat[:,s:e], axis=-1))
+        falign = np.vstack(falign)
+        feats.extend(np.vstack(falign))
 
-def swapFormants(df, formdir):
-    files = df['fil'].unique()
-    for f in files:
-        if not os.path.exists(os.path.join(formdir, f+'.f')):
-            print('formant file ' + f + ' does not exist!')
-            sys.exit(1)
+    if not saved:
+        np.savez_compressed(fileout.replace('.npz',''), **wavfeats)
 
-    split = []
-    nsplits = mp.cpu_count()
-    s = files.size/nsplits
-    for n in range(nsplits):
-        e = (n+1)*s if (n+1) < nsplits else files.size
-        split.append(files[n*s:e])
+    feats = np.array(feats)
+    numfeats = feats.shape[1]
+    # delta wave features: average distance of a phone from the succeeding
+    # phone
+    delfeats = np.sum(np.square(np.diff(feats[:, :-1],axis=0)),axis=-1)**0.5
+    delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
+    feats = np.concatenate((feats, delfeats), axis=1)
+    newcols = [str(n) for n in range(numfeats+1)]
+    for n in range(len(newcols)):
+        dfspk[newcols[n]] = feats[:,n]
+
+    # calculate per phone per spontan/read stats
+    dfspon = dfspk.loc[[f for f in files if f.find('Z') > 0]]
+    dfread = dfspk.loc[[f for f in files if f.find('Z') < 0]]
+    dfsponsz = dfspon.index.size
+    dfreadsz = dfread.index.size
+    phonfeats = []
+    phones = [p for p in phones if p in dfspon.phon.unique() and p in dfread.phon.unique()]
+    for p in phones:
+        # gather per phone data for spon/read: leave out phone name and time
+        dfsponp = dfspon.ix[dfspon.phon == p, 2:]
+        dfreadp = dfread.ix[dfread.phon == p, 2:]
+        # calculate phone frequency of occurence for spon/read
+        ns = float(dfsponp.index.size)/dfsponsz
+        nr = float(dfreadp.index.size)/dfreadsz
+        # calculate per phone means for spon/read, and stack
+        phonfeat = np.vstack((dfsponp.mean().get_values(), dfreadp.mean().get_values()))
+
+        # finally, calculate differences between spon/read features
+        # from left to right: duration, wave features, energy, delta features,
+        # delta energy
+        deldur = phonfeat[0,0]-phonfeat[1,0]
+        # for wave features (formant/mfcc), calculate euclidian distance
+        # between spon and read means
+        delf = np.sum(np.square(np.diff(phonfeat[:, 1:numfeats],axis=0)))**0.5
+        deldelf = phonfeat[0,-1]-phonfeat[1,-1]
+        # for energy, subtract for mfcc (because it's log), calculate decibel
+        # if formant
+        if features == 'mfcc':
+            deleng = phonfeat[0,numfeats]-phonfeat[1,numfeats]
+        elif features == 'formant':
+            deleng = 20.*np.log10(phonfeat[0,numfeats]/phonfeat[1,numfeats])
+        # append results
+        phonfeats.append([ns, nr, deldur, delf, deleng, deldelf ])
+
+    # return processed features
+    #return pd.DataFrame(phonfeats, index=phones, columns=['ns', 'nr', 'dur', 'fdist', 'energy', 'delfdist'])
+    return np.vstack(phonfeats)
+
+def calcFeats(wavsdir, alifile, phonfile):
+    df = swapPhones(alifile, phonfile)
+    phones = [p for p in open('exprphones.txt').read().split('\n')[:-1]]
+    path = [os.path.join(wavsdir, d) for d in os.listdir(wavsdir)]
 
     pool = mp.Pool(mp.cpu_count())
-    formfeats = pool.map(procFile, [[f, df, formdir] for f in split])
+    args = [[d, df, phones] for d in path]
+    feats = pool.map(procDirMfc, args)
     pool.close()
     pool.terminate()
     pool.join()
-    formfeats = np.vstack(formfeats)
-    print(formfeats)
-    print(formfeats.shape)
-    df['f0'] = formfeats[:,0]
-    df['f1'] = formfeats[:,1]
-    df['f2'] = formfeats[:,2]
-    df['f3'] = formfeats[:,3]
+    return feats
 
 def main(args):
     confdir = args[1]
@@ -224,7 +355,7 @@ def main(args):
     # check if formants have been calculated
     if not os.path.exists(formdir):
         print('calculating formants from wavs')
-        calcFormants(wavsdir, formdir)
+        calcWaveFeats(wavsdir, formdir)
 
     align_file = os.path.join(confdir, 'ali.ctm')
     phones_file = os.path.join(confdir, 'phones.txt')
