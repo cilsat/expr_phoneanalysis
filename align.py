@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import sys, os
 import numpy as np
 
@@ -53,46 +54,6 @@ def makeHDF(ali_file, hdf_file):
                 dset = grp.ix[grp.fid == fid, 'phon':].values
                 g.create_dataset(name=fid, data=dset)
 
-def calcPhoneFeats(df, name, all=False):
-    #get vowels
-    if all:
-        phones = [p for p in df['phon'].unique()]
-    else:
-        phones = []
-        for p in df['phon'].unique():
-            v = p.split('_')[0]
-            if v.startswith('a') or v.startswith('e') or v.startswith('i') or v.startswith('o') or v.startswith('u') or v.startswith('@'):
-                phones.append(p)
-
-    # calcculate delta formants
-    delf = df.iloc[:,4:].diff()
-    delf.iloc[0,:] = 0
-    delf.rename(columns={'f0':'df0', 'f1':'df1', 'f2':'df2', 'f3':'df3'}, inplace=True)
-    df[delf.columns] = delf
-
-    # calculate the average/variance of freq, duration, formants 0-4 of each vowel
-    dfsize = 1./df.size
-    feats = []
-    for p in phones:
-        phon = df[df['phon'] == p]
-        num = len(phon.index)
-        fr = num*dfsize*100
-        dm = phon['dur'].mean()
-        dv = phon['dur'].var()
-        fm = phon.loc[:,'f0':'f3'].mean().tolist()
-        fv = phon.loc[:,'f0':'f3'].var().tolist()
-        dfm = phon.loc[:,'df0':'df3'].abs().mean().tolist()
-        dfv = phon.loc[:,'df0':'df3'].abs().var().tolist()
-        feats.append([fr, num, dm, dv]+fm+fv+dfm+dfv)
-    cols = [('occurence', name+'freq'), ('occurence', name+'num'), ('dur', name+'mean'), ('dur', name+'var')]
-    cols += [('formants', name+str(n)+'mean') for n in range(4)]
-    cols += [('formants', name+str(n)+'var') for n in range(4)]
-    cols += [('deltas', name+str(n)+'mean') for n in range(4)]
-    cols += [('deltas', name+str(n)+'var') for n in range(4)]
-    mcols = pd.MultiIndex.from_tuples(cols)
-
-    return pd.DataFrame(feats, index=phones, columns=mcols)
-
 def getFrames(dat, frame_size):
     hop_size = int(frame_size - np.floor(0.5 * frame_size))
     # zeros at beginning (thus center of 1st window should be for sample nr. 0)
@@ -141,96 +102,6 @@ def calcWaveFeats(filename, fs, win, b, a):
     wavfeat = np.vstack((formant.T, energy.T))
 
     return wavfeat
-
-def procDirMfc(args):
-    s, ali, mfc, phones, pm = args
-    ali = h5py.File(ali)[s]
-    mfc = h5py.File(mfc)[s]
-    spkr = s
-    attr = ali.keys()[0][3:6]
-    print(s+' '),
-
-    # make sure files exist in both alignment and mfcc datasets
-    files = list(set(ali.keys()) & set(mfc.keys()))
-    # align mfcc features to phones
-    mfcfeat = []
-    alifeat = []
-    allf = []
-    sponf = []
-    readf = []
-    for f in files:
-        # separate spon and read files
-        if f[-4] == 'Z':
-            sponf.append(f)
-        else:
-            readf.append(f)
-        # read MFCC and timing/alignment data for file
-        mfcdata = mfc[f].value.T
-        alidata = ali[f].value
-        # align MFCC and timing data
-        strides = (100*alidata[:,1]).astype(int)
-        end = mfcdata.shape[-1]
-        mfcalign = []
-        for i, s in enumerate(strides):
-            e = strides[i+1] if (i+1) < strides.size else end
-            mfcalign.append(np.mean(mfcdata[:,s:e], axis=-1))
-            allf.append(f)
-        mfcfeat.extend(np.vstack(mfcalign))
-        alifeat.extend(alidata[:,[0,2]])
-
-    mfcfeat = np.array(mfcfeat)
-    numfeats = mfcfeat.shape[1]
-    # delta wave features: average distance of a phone from the succeeding
-    # phone
-    delfeats = np.sum(np.square(np.diff(mfcfeat[:, :-1],axis=0)),axis=-1)**0.5
-    delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
-    # horizontally stack all the data together
-    feats = np.concatenate((alifeat, mfcfeat, delfeats), axis=1)
-    # make dataframe from features
-    dfspk = pd.DataFrame(feats, index=allf, columns=['phon','dur']+range(13)+['delfdist'])
-    dfspk.phon = dfspk.phon.astype(int).map(pm)
-
-    # calculate per phone per spontan/read stats
-    dfspon = dfspk.loc[sponf]
-    dfread = dfspk.loc[readf]
-    dfspksz = dfspon.index.size + dfread.index.size
-    phonfeats = []
-    phones = list(set(dfspon.phon) & set(dfread.phon) & set(phones))
-    for p in phones:
-        # gather per phone data for spon/read: leave out phone name and time
-        dfsponp = dfspon.ix[dfspon.phon == p, 2:]
-        dfreadp = dfread.ix[dfread.phon == p, 2:]
-        # calculate phone frequency of occurence for spon/read
-        sfreq = float(dfsponp.index.size)/dfspksz
-        rfreq = float(dfreadp.index.size)/dfspksz
-        # calculate per phone means for spon/read, and stack
-        smean = dfsponp.mean().values
-        rmean = dfreadp.mean().values
-        diffp = smean - rmean
-        # finally, calculate differences between spon/read features
-        # from left to right: duration, wave features, energy, delta features,
-        # delta energy
-        deldur = diffp[0]/(smean[0] + rmean[0])
-        # for wave features (formant/mfcc), calculate euclidian distance
-        # between spon and read means
-        delf = np.sum(np.square(diffp[1:numfeats]))**0.5
-        deldelf = diffp[-1]
-        # for energy, subtract for mfcc (because it's log), calculate decibel
-        # if formant
-        deleng = diffp[numfeats]
-        # append results
-        phonfeats.append([spkr, attr[0], attr[1], attr[2],
-            sfreq, rfreq, deldur, delf, deleng, deldelf])
-
-    try:
-        phonfeats = pd.DataFrame(phonfeats, index=phones,
-                columns=['spkr', 'k', 's', 'u', 'sfreq', 'rfreq',
-                    'dur', 'fdist', 'energy', 'delfdist'])
-    except:
-        print('no phone feats! ' + spkr)
-        return
-    # return processed features
-    return phonfeats
 
 def procDir(args):
     pathin, pathout, df, phones, features, overwrite = args
@@ -298,7 +169,6 @@ def procDir(args):
         for i, s in enumerate(strides):
             e = strides[i+1] if (i+1) < strides.size else end
             falign.append(np.mean(wavfeat[:,s:e], axis=-1))
-        falign = np.vstack(falign)
         feats.extend(np.vstack(falign))
 
     if not saved:
@@ -353,17 +223,99 @@ def procDir(args):
     #return pd.DataFrame(phonfeats, index=phones, columns=['ns', 'nr', 'dur', 'fdist', 'energy', 'delfdist'])
     return np.vstack(phonfeats)
 
-def calcFeats(alifile, featfile, phonfile):
+def procAliMfc(args):
+    spkr, ali, mfc, phones, pm, perphone = args
+
+    def procSponRead(dfspk, phones):
+        spkr = dfspk.index[0]
+        attr = spkr[3:6]
+        spkr = spkr[0] + spkr[6:9]
+        # calculate per phone per spontan/read stats
+        dfspon = dfspk.loc[dfspk.index.str.get(-4) == 'Z']
+        dfread = dfspk.loc[set(dfspk.index) - set(dfspon.index)]
+        phonfeats = []
+        phones = list(set(dfspon.phon) & set(dfread.phon) & set(phones))
+        for p in phones:
+            # gather per phone data for spon/read: leave out phone name and time
+            dfsponp = dfspon.ix[dfspon.phon == p, 'dur':]
+            dfreadp = dfread.ix[dfread.phon == p, 'dur':]
+            # calculate phone frequency of occurence for spon/read
+            snum = dfsponp.index.size
+            rnum = dfreadp.index.size
+            sfreq = float(dfsponp.index.size)/dfspon.index.size
+            rfreq = float(dfreadp.index.size)/dfread.index.size
+            #freq = 10*np.log10(sfreq/rfreq)
+            # calculate per phone means for spon/read, and stack
+            smean = np.mean(dfsponp.values, axis=0).tolist()
+            rmean = np.mean(dfreadp.values, axis=0).tolist()
+
+            phonfeats.append([spkr, attr[0], attr[1], attr[2],
+                snum, rnum, sfreq, rfreq] + smean + rmean)
+
+        try:
+            phonfeats = pd.DataFrame(phonfeats, index=phones)
+        except:
+            print('no phone feats! ' + spkr)
+            return
+        # return processed features
+        return phonfeats
+
+    def alignPhones(data, stride):
+        align = []
+        for i, s in enumerate(stride):
+            e = stride[i+1] if (i+1) < stride.size else data.shape[-1]
+            align.append(np.mean(data[:,s:e], axis=-1))
+        return np.array(align)
+
+    ali = h5py.File(ali)[spkr]
+    mfc = h5py.File(mfc)[spkr]
+    # make sure files exist in both alignment and mfcc datasets
+    files = list(set(ali.keys()) & set(mfc.keys()))
+    # align mfcc features to phones
+    mfcfeat = []
+    alifeat = []
+    allf = []
+    for f in files:
+        # read MFCC and timing/alignment data for file
+        mfcdata = mfc[f].value.T
+        alidata = ali[f].value
+        # align MFCC and timing data
+        strides = (100*alidata[:,1]).astype(int)
+        mfcfeat.extend(alignPhones(mfcdata, strides))
+        alifeat.extend(alidata[:,[0,2]])
+        allf.extend([f]*len(strides))
+
+    mfcfeat = np.array(mfcfeat)
+    numfeats = mfcfeat.shape[1]
+    # delta wave features: average distance of a phone from the succeeding
+    #ephone
+    delfeats = np.sum(np.square(np.diff(mfcfeat[:, :-1],axis=0)),axis=-1)**0.5
+    delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
+    # horizontally stack all the data together
+    feats = np.concatenate((alifeat, mfcfeat, delfeats), axis=1)
+    # make dataframe from features
+    dfspk = pd.DataFrame(feats, index=allf, columns=['phon','dur']+range(13)+['delfdist'])
+
+    if perphone:
+        # map phones from integer to string
+        dfspk.phon = dfspk.phon.astype(int).map(pm)
+        dfspk = procSponRead(dfspk, phones)
+    else:
+        # generate labels
+        dfspk['lbl'] = dfspk.index.map(lambda x: True if x[-4] == 'Z' else False)
+
+    sys.stdout.flush()
+    print(spkr, end=' ')
+
+    return dfspk
+
+
+def calcFeats(alifile, mfcfile, phonfile, perphone=True):
     try:
         ali = h5py.File(alifile)
+        mfc = h5py.File(mfcfile)
     except:
-        print('alignment file must be in HDF5 format.')
-        sys.exit()
-
-    try:
-        mfc = h5py.File(featfile)
-    except:
-        print('MFCC features file must be in HDF5 format.')
+        print('files must be in HDF5 format.')
         sys.exit()
 
     phones = [p for p in open(phonfile).read().split('\n')[:-1]]
@@ -376,15 +328,23 @@ def calcFeats(alifile, featfile, phonfile):
     spk = list(set(ali.keys()) & set(mfc.keys()))
     ali.close()
     mfc.close()
-    args = [[s, alifile, featfile, phones, phonemap] for s in spk]
+    args = [[s, alifile, mfcfile, phones, phonemap, perphone] for s in spk]
 
     pool = mp.Pool(mp.cpu_count())
-    feats = pool.map(procDirMfc, args)
+    feats = pool.map(procAliMfc, args)
     pool.close()
     pool.terminate()
     pool.join()
 
-    return feats
+    df = pd.concat(feats)
+    cols = dict(zip(range(len(df.columns)), ['spkr', 'k', 's', 'u', 'snum', 'rnum', 'sfreq', 'rfreq', 'sdur', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 'sener', 'sdist', 'rdur', 'r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', 'rener', 'rdist']))
+    if perphone:
+        try:
+            df.rename(columns=cols, inplace=True)
+        except:
+            print("could not rename columns")
+
+    return df
 
 def viewPerPhone(dfp, attr=None):
     phones = [p for p in dfp.index.unique() if dfp.loc[p].values.ndim > 1]
@@ -394,6 +354,28 @@ def viewPerPhone(dfp, attr=None):
     else:
         dfpp = pd.DataFrame([np.mean(dfp.ix[p, 4:].values, axis=0) for p in phones], index=phones, columns=dfp.columns[4:])
     return dfpp
+
+def predictSponRead(attrs):
+    from sklearn.linear_model import SGDClassifier
+    from sklearn.cross_validation import KFold
+
+    df = calcFeats('ali-1.9.hdf', 'mfc-1.9.hdf', 'expr3.txt', perphone=False)
+    kf = KFold(n=len(df), n_folds=10, shuffle=True)
+    args = [[df, train, test, attrs] for train, test in kf]
+
+    def svm(args):
+        df, train, test, attrs = args
+        dftrain = df.iloc[train]
+        dftest = df.iloc[test]
+        clf = SGDClassifier(loss='squared_hinge', penalty='l2')
+        clf.fit(dftrain.loc[:, attrs].values, dftrain.lbl.values)
+        clf.score(dftest.loc[:, attrs].values, dftest.lbl.values)
+
+    pool = mp.Pool(mp.cpu_count())
+    pool.map(svm, args)
+    pool.close()
+    pool.terminate()
+    pool.join()
 
 def main(args):
     confdir = args[1]
