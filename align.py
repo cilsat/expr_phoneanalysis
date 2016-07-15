@@ -285,16 +285,26 @@ def procAliMfc(args):
         alifeat.extend(alidata[:,[0,2]])
         allf.extend([f]*len(strides))
 
+    # recreate MFCC features
     mfcfeat = np.array(mfcfeat)
+    delmfc = np.diff(mfcfeat, axis=0)
+    deldelmfc = np.diff(delmfc, axis=0)
+    zero = np.zeros((1, 13), dtype=float)
+    delmfc = np.vstack((delmfc, zero))
+    deldelmfc = np.vstack((deldelmfc, zero, zero))
+    mfcfeat = np.hstack((mfcfeat, delmfc, deldelmfc))
+
+    """
     numfeats = mfcfeat.shape[1]
     # delta wave features: average distance of a phone from the succeeding
     #ephone
     delfeats = np.sum(np.square(np.diff(mfcfeat[:, :-1],axis=0)),axis=-1)**0.5
     delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
+    """
     # horizontally stack all the data together
-    feats = np.concatenate((alifeat, mfcfeat, delfeats), axis=1)
+    feats = np.concatenate((alifeat, mfcfeat), axis=1)
     # make dataframe from features
-    dfspk = pd.DataFrame(feats, index=allf, columns=['phon','dur']+range(13)+['delfdist'])
+    dfspk = pd.DataFrame(feats, index=allf, columns=['phon','dur']+range(39))
 
     if perphone:
         # map phones from integer to string
@@ -308,7 +318,6 @@ def procAliMfc(args):
     print(spkr, end=' ')
 
     return dfspk
-
 
 def calcFeats(alifile, mfcfile, phonfile, perphone=True):
     try:
@@ -337,7 +346,7 @@ def calcFeats(alifile, mfcfile, phonfile, perphone=True):
     pool.join()
 
     df = pd.concat(feats)
-    cols = dict(zip(range(len(df.columns)), ['spkr', 'k', 's', 'u', 'snum', 'rnum', 'sfreq', 'rfreq', 'sdur', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 'sener', 'sdist', 'rdur', 'r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', 'rener', 'rdist']))
+    cols = dict(zip(range(len(df.columns)), ['spkr', 'k', 's', 'u', 'snum', 'rnum', 'sfreq', 'rfreq', 'sdur'] + ['s'+str(n) for n in range(39)] + ['sdist', 'rdur'] + ['r'+str(n) for n in range(39)] + ['rdist']))
     if perphone:
         try:
             df.rename(columns=cols, inplace=True)
@@ -355,6 +364,62 @@ def viewPerPhone(dfp, attr=None):
         dfpp = pd.DataFrame([np.mean(dfp.ix[p, 4:].values, axis=0) for p in phones], index=phones, columns=dfp.columns[4:])
     return dfpp
 
+def classify(dfin, clf='svm'):
+    from sklearn.cross_validation import KFold
+    from sklearn.metrics import f1_score
+
+    if clf == 'svm':
+        from sklearn.linear_model import SGDClassifier
+        clf = SGDClassifier(loss='squared_hinge', penalty='l1')
+    elif clf == 'nb':
+        from sklearn.naive_bayes import MultinomialNB
+        clf = MultinomialNB()
+    elif clf == 'log':
+        from sklearn.linear_model import SGDClassifier
+        clf = SGDClassifier(loss='log', penalty='l2')
+
+    df = dfin.dropna()
+    kf = KFold(len(df), n_folds=10, shuffle=True)
+    scores = []
+    misses = []
+    for r, s in kf:
+        dfr = df.iloc[r]
+        dfs = df.iloc[s]
+        clf.fit(dfr.iloc[:, :-1].values, dfr.lbl.values)
+        pre = clf.predict(dfs.iloc[:, :-1].values)
+        res = pre != dfs.lbl.values
+        misses.append(dfs.iloc[(np.argwhere(res)).flatten()])
+        scores.append(np.mean(res))
+        #scores.append(f1_score(dfs.lbl.values, clf.predict(dfs.iloc[:, :-1].values) == dfs.lbl.values))
+
+    misses = pd.concat(misses)
+    misscount = (100*(misses.groupby([misses.lbl]).count().iloc[:,0].astype(float)/df.groupby([df.lbl]).count().iloc[:,0]).values).tolist()
+    print(misscount+[100-100*np.mean(scores), np.var(scores)])
+    return misses
+
+def getAcFeats(df):
+    def normalize(x):
+        return x/x.max()
+
+    dfg = df.groupby(df.index)
+    lbl = dfg.lbl.mean()
+
+    # calculate speed of pronunciatioin
+    #spd = dfg.dur.count().astype(float)/dfg.dur.sum()
+
+    dfg = df.groupby(df.index)[df.columns[1:-1]]
+    # take normalized mean and variance of segments per utterance
+    dfm = dfg.mean().apply(normalize)
+    dfv = dfg.var().apply(normalize)
+
+    # take normalized mean and variance of differences between consecutive
+    # segments per utterance
+    dfd = dfg.transform(lambda x:x.diff()).groupby(df.index)
+    dfdm = dfd.mean().apply(normalize)
+    dfdv = dfd.var().apply(normalize)
+
+    return pd.concat((dfm, dfv, dfdm, dfdv, lbl), axis=1)
+
 def predictSponRead(attrs):
     from sklearn.linear_model import SGDClassifier
     from sklearn.cross_validation import KFold
@@ -362,14 +427,6 @@ def predictSponRead(attrs):
     df = calcFeats('ali-1.9.hdf', 'mfc-1.9.hdf', 'expr3.txt', perphone=False)
     kf = KFold(n=len(df), n_folds=10, shuffle=True)
     args = [[df, train, test, attrs] for train, test in kf]
-
-    def svm(args):
-        df, train, test, attrs = args
-        dftrain = df.iloc[train]
-        dftest = df.iloc[test]
-        clf = SGDClassifier(loss='squared_hinge', penalty='l2')
-        clf.fit(dftrain.loc[:, attrs].values, dftrain.lbl.values)
-        clf.score(dftest.loc[:, attrs].values, dftest.lbl.values)
 
     pool = mp.Pool(mp.cpu_count())
     pool.map(svm, args)
