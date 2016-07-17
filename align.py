@@ -62,56 +62,9 @@ def makeAliHdf(ali_file, hdf_file):
                 dset = grp.ix[grp.fid == fid, 'phon':].values
                 g.create_dataset(name=fid, data=dset)
 
-def getFrames(dat, frame_size):
-    hop_size = int(frame_size - np.floor(0.5 * frame_size))
-    # zeros at beginning (thus center of 1st window should be for sample nr. 0)
-    samples = np.append(np.zeros(int(np.floor(frame_size/2.0))), dat)
-    # cols for windowing
-    cols = int(np.ceil( (len(samples) - frame_size) / float(hop_size))) + 1
-    # zeros at end (thus samples can be fully covered by frames)
-    samples = np.append(samples, np.zeros(frame_size))
-    # organize frames into multidimensional matrix
-    frames = stride_tricks.as_strided(samples, shape=(cols, frame_size), strides=(samples.strides[0]*hop_size, samples.strides[0])).copy()
-    return frames
-
-def getFormants(frames, sr):
-    # calculate number of LPC coefficients to use
-    ncoeff = 2 + sr/1000
-    # calculate LPC coefficients
-    c = lpc(frames, ncoeff)[0]
-    # obtain roots of LPC
-    A = np.diag(np.ones((c.shape[1]-2,), float), -1)
-    cs = -c[:,1:]
-    Z = np.array([np.vstack((cp, A[1:])) for cp in cs])
-    # root calculation using eigen method: VERY SLOW
-    eig = np.linalg.eigvals(Z)
-    arc = np.arctan2(np.imag(eig), np.real(eig))
-    # convert to Hz and sort ascending
-    formant = []
-    pi2 = 0.05*sr/np.pi
-    [formant.append(sorted(pi2*a[a>0])[:4]) for a in arc]
-
-    return np.array(formant)
-
-def calcWaveFeats(filename, fs, win, b, a):
-    # read wav
-    sr, raw = read(filename)
-    # apply highpass filter
-    raw = filtfilt(b, a, raw)
-    # get raw frames
-    frames = getFrames(raw, fs)
-    # apply hanning window
-    frames *= win
-    # get energy
-    energy = np.mean(np.abs(frames/2**15), axis=-1)
-    # get formants
-    formant = getFormants(frames, sr)
-    # stack and append
-    wavfeat = np.vstack((formant.T, energy.T))
-
-    return wavfeat
-
 def calcFormantsParallel(args):
+    spkpath, outhdf, alihdf = args
+    spkr = spkpath.split('/')[-1]
     # get frame size
     sr = 16000        # samplerate
     fss = 0.01        # framesize in seconds
@@ -122,6 +75,55 @@ def calcFormantsParallel(args):
     # calc highpass filter coefficients
     b, a = butter(1, 50./(0.5*sr), "highpass")
 
+    def getFrames(dat, frame_size):
+        hop_size = int(frame_size - np.floor(0.5 * frame_size))
+        # zeros at beginning (thus center of 1st window should be for sample nr. 0)
+        samples = np.append(np.zeros(int(np.floor(frame_size/2.0))), dat)
+        # cols for windowing
+        cols = int(np.ceil( (len(samples) - frame_size) / float(hop_size))) + 1
+        # zeros at end (thus samples can be fully covered by frames)
+        samples = np.append(samples, np.zeros(frame_size))
+        # organize frames into multidimensional matrix
+        frames = stride_tricks.as_strided(samples, shape=(cols, frame_size), strides=(samples.strides[0]*hop_size, samples.strides[0])).copy()
+        return frames
+
+    def getFormants(frames, sr):
+        # calculate number of LPC coefficients to use
+        ncoeff = 2 + sr/1000
+        # calculate LPC coefficients
+        c = lpc(frames, ncoeff)[0]
+        # obtain roots of LPC
+        A = np.diag(np.ones((c.shape[1]-2,), float), -1)
+        cs = -c[:,1:]
+        Z = np.array([np.vstack((cp, A[1:])) for cp in cs])
+        # root calculation using eigen method: VERY SLOW
+        eig = np.linalg.eigvals(Z)
+        arc = np.arctan2(np.imag(eig), np.real(eig))
+        # convert to Hz and sort ascending
+        formant = []
+        pi2 = 0.05*sr/np.pi
+        [formant.append(sorted(pi2*a[a>0])[:4]) for a in arc]
+
+        return np.array(formant)
+
+    def calcWaveFeats(filename, fs, win, b, a):
+        # read wav
+        sr, raw = read(filename)
+        # apply highpass filter
+        raw = filtfilt(b, a, raw)
+        # get raw frames
+        frames = getFrames(raw, fs)
+        # apply hanning window
+        frames *= win
+        # get energy
+        energy = np.mean(np.abs(frames/2**15), axis=-1)
+        # get formants
+        formant = getFormants(frames, sr)
+        # stack and append
+        wavfeat = np.vstack((formant.T, energy.T))
+
+        return wavfeat
+
     def alignPhones(data, stride):
         align = []
         for i, s in enumerate(stride):
@@ -129,8 +131,6 @@ def calcFormantsParallel(args):
             align.append(np.mean(data[:,s:e], axis=-1))
         return np.array(align)
 
-    spkpath, outhdf, alihdf = args
-    spkr = spkpath.split('/')[-1]
     # get wav files in specified directory
     wavsin = []
     argout = []
@@ -139,19 +139,26 @@ def calcFormantsParallel(args):
         argout.extend([f.replace('.wav','') for f in filename if f.split('.')[-1] == 'wav'])
     paths = dict(zip(argout, wavsin))
     
-    ali = h5py.File(alihdf)[spkr]
+    ali = h5py.File(alihdf)
     out = h5py.File(outhdf)
+    try:
+        alispk = ali[spkr]
+    except:
+        print(spkr + ' not in alignment file')
+        return
     try:
         outspk = out.create_group(spkr)
     except:
         outspk = out[spkr]
-    files = list(set(ali.keys()) & set(argout))
+    files = list(set(alispk.keys()) & set(argout))
     forfeat = []
     alifeat = []
     allf = []
     for f in files:
         path = paths[f]
-        if not os.path.exists(path): continue
+        if not os.path.exists(path):
+            print(f + '.wav does not exist')
+            continue
         if f in outspk.keys():
             wavfeat = outspk[f]
         else:
@@ -159,7 +166,7 @@ def calcFormantsParallel(args):
             wavfeat = calcWaveFeats(path, fs, win, b, a)
             outspk.create_dataset(name=f, data=wavfeat)
         # align formant and timing data: DON'T CHANGE CONSTANTS
-        alidata = ali[f].value
+        alidata = alispk[f].value
         strides = (200*alidata[:,1]).astype(int)
         forfeat.extend(alignPhones(wavfeat, strides))
         alifeat.extend(alidata[:,[0,2]])
@@ -178,16 +185,15 @@ def calcFormantsParallel(args):
     try:
         feats = pd.DataFrame(np.hstack((alifeat, forfeat)), index=allf, columns=['phon', 'dur']+range(forfeat.shape[-1]))
         sys.stdout.flush()
+        print(spkr, end=" ")
         return feats
     except:
-        print(spkr)
-        print(forfeat.shape)
-        print(alifeat.shape)
-        print(len(allf))
+        print(spkr, forfeat.shape, alifeat.shape, len(allf))
         return
         #return forfeat, alifeat, allf
 
 def calcFormants(wavpath, outfile, alifile):
+    #return calcFormantsParallel([wavpath, outfile, alifile])
     args = [[os.path.join(wavpath, path), outfile, alifile] for path in os.listdir(wavpath)]
     pool = mp.Pool(mp.cpu_count())
     formants = pool.map(calcFormantsParallel, args)
