@@ -35,7 +35,7 @@
 \maketitle
 
 \begin{abstract}
-The recognition of spontaneous, conversational speech is crucial in achieving practical speech recognition.
+The accurate recognition of spontaneous speech is crucial in achieving practical speech recognition.
 Due to the difficulties associated with the collection and labelling of spontaneous speech, a larger amount of dictated speech recorded from prepared transcripts is commonly utilized in the training of statistical-based speech recognition systems.
 Unfortunately, such systems often suffer from poor spontaneous speech recognition performance.
 In an effort to improve spontaneous recognition performance, we attempt to pinpoint the differences between spontaneous and dictated Indonesian speech.
@@ -51,82 +51,34 @@ speech recognition,
 \IEEEpeerreviewmaketitle
 
 \section{Introduction}
-The ability to accurately recognize spontaneous speech is currently the largest challenge to the practical use of speech recognition systems.
+The ability to accurately recognize spontaneous speech is a significant hurdle to the practical use of a speech recognition system, with many systems performing poorly.
 This is seemingly in contrast to the recognition performance achievable on most state-of-the-art statistical-based systems on dictated speech tasks and limited domain spoken interactions.
-It has been proposed that spontaneous speech is less ordered both linguistically and acoustically, and differs spectraclly from dictated speech.
+In \cite{hoesen}, an Indonesian language speech recognition system was built that is capable of achieving upwards of 80\% accuracy for dictated speech but only around 65\% for spontaneous speech.
+Other examples can be found in \cite{}, \cite{}, and \cite{}.
 
-There are additional practical difficulties in the collection of spontaneous speech data. 
+This poor performance may be partly attributed to the fact that a large proportion of the data used to train models is derived from dictated instead of spontaneous speech.
+Recording and labelling large amounts of new spontaneous speech is a difficult and costly process, whereas existing Indonesian language resources are scarce or non-existant.
+In addition, although spontaneous recognition is an important component of practical speech recognition, research has only relatively recently shifted in this direction.
 
-It is important to understand that the distinction between spontaneous and dictated speech is not analogous to the distinction between conversational and formal speech, though some overlap may occur. 
+Spontaneous and dictated speech also differ in various ways.
+It has been proposed that spontaneous speech is less ordered both linguistically and acoustically \cite{nakamura1}, and differs spectraclly from dictated speech \cite{nakamura2}.
+Spontaneous speech contains filled pauses, repairs, hesitations, repetitions, and disfluencies, which are largely absent in dictated speech.
+The exact differences vary by language, with some languages exhibiting a strong tonal difference between spontaneous and dictated speech \cite{spanish}.
+Speech disfluencies also differ between language and speaker; each language, dialect, or speaker may have their own set of specific disfluencies and patterns.
 
-Acoustically, differences between spontaneous and dictated speech may occur at a number of different levels.
-At the temporal level, a specified number of (overlapping) audio samples are processed in a frame.
-A segment is comprised of a varying number of frames that physically describe a single phoneme, the smallest linguistic unit.
+A number of methods have been developed to improve spontaneous speech recognition performance.
+In the model adaptation approach, a large amount of dictation data is adapted to a small amount of spontaneous data while training the acoustic model, using a method such as Maximum A Priori (MAP).
+In the second approach, acoustic and language models for spontaneous and dictated speech are trained separately, with a method to switch or weigh models on the fly.
+Model switching relies on a reliable way to differentiate between spontaneous and dictated speech that is independent of the specific acoustic models.
+
+In either case, it is instructive to understand how acoustic differences between spontaneous and dictated speech manifest and how to describe them.
+At the temporal level, speech audio data is represented as audio samples taken at a particular sampling rate.
+A constant number of (overlapping) audio samples are processed in a frame to obtain low level spectral, cepstral, and energy features.
+A segment, comprised of a varying number of such frames, represents a single phoneme, the smallest linguistic unit.
 Linguistically, phonemes are organized into words and sentences.
-However, for the purposes of acoustic analysis, the linguistic units are foregone and we instead consider utterances as collections of segments.
-A number of high level features are also considered acoustically important.
-These features are the specific speaker, their gender, dialect, and age.
-
-Understanding exactly how spontaneous and dictated speech differ is an important step in improving recognition performance. In this paper we discuss how these differences manifest acoustically, specifically with regards to timing/temporal, spectral, and log energy features, at various units of consideration.
-
-In machine learning-based document classification, an indexing procedure needs to be applied to the documents in order to obtain a compact representation of its contents \cite{sebastiani}.
-Document are usually represented as a vector of term weights where a term is typically identified by word.
-Most of the time, term frequency-inverse document frequency (TF-IDF) weighting function is used to compute term weights.
-Before indexing, removal of function words (i.e., topic-neutral words such as articles, prepositions, conjunctions, etc.) is almost always performed.
-Stemming is widely used to perform such procedure \cite{ayu}.
-A stemmer extracts the root word from a given word.
-In summary, standard procedure consists of case folding, tokenization, stop words elimination, stemming, and TF-IDF weighting.
-
-The result of these procedures is used to train a classifier.
-The resulting classifier only covers words contained in the documents.
-Out of vocabulary (OOV) occurs when there are words that are not covered by the classifier.
-This condition can lead to performance decrease as shown in \cite{rahma}.
-
-For illustration, consider an event of total solar eclipse that has occured in Indonesia on March 2016.
-Prior and some time after this event occured, there were a lot of news articles covering this event.
-Suppose we had a classifier that we had trained a year before this event occurs.
-Since total solar eclipse is a rare event, not many news articles would cover this event long before it happens.
-Because of that, our classifier did not learn this kind of atricle documents.
-For this illustration, let's say that correct label for articles about total solar eclipse is "natural phenomenon".
-Our classifier would might give label "tourism" for these atricles because they mentioned a lot of foreigner visited Indonesia on that time.
-This could happen because our classifier did not learn words such as "total", "solar", and "eclipse", which might be important to classify documents belong to "natural phenomenon".
-
-To cover the OOV words, we need to learn those words.
-This can be done in two methods.
-The first method is batch learning.
-In batch learning, we create a new classifier using previous documents we have used to train our old classifier and the new documents containing the OOV words.
-The new classifier will be used for future classifying task, and the old one can be discarded.
-The problem with batch learning is memory consumption and processing time for training will increase proportionally to the number of documents we use \cite{calandra}.
-And also, availability of previous documents can not be guaranteed in the time of future training, making batch learning can not be performed.
-This is why we need the second method: incremental learning.
-In incremental learning, we do not use any previous documents, only the new ones \cite{muhlbaier}.
-That is, we can learn new documents as many times as we need without running into memory consumption, computational time, and previous documents availability limitations.
-
-To our knowledge, existing incremental learning algorithms can only update its classifier parameters, they can not update its feature set.
-We can say that a vector of TF-IDF weights from indexing procedure is feature set, in the sense that it is what is used to train the classifier.
-Since the vector of weights is the words weights, to include the OOV words, we need to weight those words and add it into the vector.
-That being said, we need an algorithm that able to update its classifier feature set, not only its parameter.
-
-For this reason, our solution is based on meta machine learning algorithm, an ensemble method.
-The idea is, when OOV occurs, we add a new classifier member that covers feature set including OOV words that are indexed from new documents.
-The new classifier will be trained by only using new documents, therefore this method still satisfies to incremental learning understanding we have explained previously.
-
-In real world, documents can usually be classified to more than one label.
-For example, an article from www.voanews.com with the title "Ex-New Orleans Mayor Starts Long Jail Term for Corruption" can be classified as "criminal-law" and "politics" article.
-Classification of a document into one or more label is known as multilabel classification.
-The classifier which do such task is called multilabel classifier.
-Ensemble methods are usually designed for single-label classifier.
-To employ multilabel classifier with ensemble method, some adaptations need to be applied.
-In this paper, we use multilabel classifier with ensemble methods so that it can be used for real world document classification task.
-
-Ensemble method with multilabel classifier has not been researched before for Indonesian news articles.
-This paper explains an ensemble approach for multilabel classification of Indonesian news articles in order to addres OOV.
-In Section II we discusses the related works.
-Our methods and adaptation strategy of ensemble and multilabel classification methods are explained in Section III.
-Our data is analyzed in Section IV.
-In section V, we present our experimental setup.
-The results are explained in section VI.
-The last section concludes and presents the further works.
+For the purposes of our acoustic analysis, however, linguistic units are ignored and we instead consider utterances as sequences of segments.
+In addition to the temporal level, a number of high level 'metadata' features are also considered acoustically important.
+These features are the specific speaker of an utterance, their gender, dialect, and age.
 
 \section{Related Works}
 
@@ -157,7 +109,24 @@ The first two methods of algorithm adaptation are the extension of AdaBoost algo
 MLkNN is the adaptation of kNN algorithm which uses kNN separately for each label then determines the k closest instances to the tested one.
 Adaboost.MH and Adaboost.MR perform well in terms of one error, coverage, ranking loss and average precision, while MLkNN performs better in terms of hamming loss \cite{zhang}.
 
-\section{Ensemble Approach}
+\section{Perisalah Corpus}
+
+The Perisalah Corpus is a collection of spontaneous and dictated speech recordings obtained for the development of the Perisalah Speech Recognition System \cite{} in collaboration with PT. Inti, an Indonesian public telecommunications company.
+The corpus was designed to sample a large variety of different age groups and local dialects for the purpose of building models suited to recognising high level government meetings at both the national and regional levels.
+The read/dictation part of the corpus was build to be lexically balanced with respect to written Indonesian.
+
+\subsection{Corpus Overview}
+
+The corpus, after cleaning, consists of 297 native Indonesian speakers, with on average 275 dictated and 61 spontaneous utterances per speaker, totalling 81240 dictated and 18210 spontaneous utterances, respectively.
+On average, dictated utterances are 6.54 seconds long and spontaneous utterances 8.33 seconds long for a total of 147.6 and 42.1 hours of dictated and spontaneous speech, respectively.
+
+Demographically, speakers were taken from both genders roughly equally, with 143 male speakers and 154 female speakers.
+The distribution of dialects was unfortunately limited by the availability of speakers at the time of recording, with a disproportionate number of Sundanese speakers.
+The sampled dialects were Javanese, Sundanese, Minang, Batak, Betawi/Melayu, Balinese, Sulawesi, and Maluku/Papua.
+Roughly 57\% of Indonesians live on Java, where the Javanese, Sundanese, and Betawi/Melayu dialects originate.
+
+Two age groups were defined, "young" being 40 years of age of under, and "old" being above 40 years of age.
+242 speakers fell into the first category and 52 the latter, with 3 undefined.
 
 AWE proposed by Wang, et al. \cite{wang} is used as ensemble method for our approach.
 Its weighting method is based on expected error of classifier.
@@ -180,7 +149,7 @@ All single-label classifier is trained using the same training data but with dif
 When classifying documents, each single-label classifier classify the documents to label it handles.
 The classification result is multilabel consisting of each single label.
 
-\subsection{Training Step}
+\subsection{Corpus Analysis}
 
 Suppose we have chunks of training data $S = {S_1, S_2, ..., S_n}$.
 We perform indexing procedure that consists of case folding, tokenization, stop words elimination, stemming, and TF-IDF weighting.
@@ -273,7 +242,7 @@ Training procedure is summarized in Algorithm \ref{algo_train}.
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Classification Step}
+\subsection{Segment Classification}
 
 The first step is top-down procedure.
 The document we want to classify is "sent" to the system, BR of ensembles.
@@ -317,7 +286,7 @@ This procedure is summarized in Algorithm \ref{algo_classify}
 \end{algorithmic}
 \end{algorithm}
 
-\section{Data Analysis}
+\section{Experiment Results and Analysis}
 
 Our data were taken from multilabel corpus constructed by Rahmawati \cite{rahma} and extended with two new datasets.
 We consider one dataset as one chunk, that means there are 3 chunks.
@@ -366,7 +335,7 @@ The number of words are counted after stop words elimination and stemming perfor
 \end{tabular}
 \end{table}
 
-\section{Experiment}
+\section{Conclusion and Future Works}
 
 Our experiment compares the performance of our method against other methods.
 There are four methods in this experiment: batch, incremental, ensemble, and ensemble-incremental.
@@ -555,6 +524,38 @@ There are evidence that shows feature selection increases classifier performance
 Although this method still leaves some opportunity for improvements, we believe that this paper has covered the big picture of what our idea is.
 
 \begin{thebibliography}{1}
+
+\bibitem{dellwo}
+V.~Delwo, A.~Leemann, M.J.~Kolly,
+    "The recognition of read and spontaneous speech in local vernacular: The case of Zurich German,"
+    Journal of Phonetics vol. 48, 2015, pp. 13-28.
+
+\bibitem{silverman}
+K.~Silverman, E.~Blaauw, J.~Spitz, J.~Pitrelli,
+    "Towards Using Prosody in Speech Recognition/Understanding Systems: Differences Between Read and Spontaneous Speech",
+
+\bibitem{liu}
+G.~Liu, Y.~Lei, J.H.L.~Hansen,
+    "Dialect Identification: Impact of Differences Between Read and Spontaneous Speech",
+    18th European Signal Processing Conference (EUISPCO-2010), 2010.
+
+\bibitem{furui1}
+S.~Furui,
+    "Spontaneous Speech Recognition and Summarization",
+
+\bibitem{benzeguiba}
+M.~Benzeguiba, R.~DeMori, O.~Deroo, S.~Dupon, T.~Erbes, D.~Jouvet, L.~Fissore, P.~Laface, A.~Mertins, C.~Ris, R.~Rose, V.~Tyagi, C.~Wellekens,
+	"Automatic Speech Recognition and Speech Variability: a Review",
+	Speech Communication 49:763-786, 2007.
+
+\bibitem{asami}
+T.~Asami, R.~Masamura, H.~Masataki, S.~Sakauchi,
+    "Read and spontaneous speech classification based on variance of GMM supervectors",
+    
+\bibitem{nakamura2}
+M.~Nakamura, I.~Koji, S.~Furui,
+    "Differences between acoustic characteristics of spontaneous and read speech and their effects on speech recognition performance",
+    Computer Speech and Language 22(2): 171-184, 2008.
 
 \bibitem{sebastiani}
 F.~Sebastiani,
