@@ -35,8 +35,16 @@ def swapPhones(align_file, phones_file):
 
     return ali
 
+def makeMfcHdf(mfc_dir, hdf_file):
+    with h5py.File(hdf_file, 'w') as f:
+        for s in os.listdir(mfc_dir):
+            g = f.create_group(s[0]+s[6:9])
+            spk = np.load(os.path.join(mfc_dir, s))
+            for n, d in spk.iteritems():
+                g.create_dataset(name=n, data=d[::-1])
+    
 # this can't actually be automated cos it depends on the semantics of the data
-def makeHDF(ali_file, hdf_file):
+def makeAliHdf(ali_file, hdf_file):
     df = pd.read_csv(ali_file, sep=' ', usecols=[0,2,3,4], header=0, names=['fid','time','dur','phon'])
     df = df.loc[df.fid.str.len() >= 13]
 
@@ -103,9 +111,7 @@ def calcWaveFeats(filename, fs, win, b, a):
 
     return wavfeat
 
-def procDir(args):
-    pathin, pathout, df, phones, features, overwrite = args
-
+def calcFormantsParallel(args):
     # get frame size
     sr = 16000        # samplerate
     fss = 0.01        # framesize in seconds
@@ -115,64 +121,83 @@ def procDir(args):
     win = np.hanning(fs)
     # calc highpass filter coefficients
     b, a = butter(1, 50./(0.5*sr), "highpass")
+
+    def alignPhones(data, stride):
+        align = []
+        for i, s in enumerate(stride):
+            e = stride[i+1] if (i+1) < stride.size else data.shape[-1]
+            align.append(np.mean(data[:,s:e], axis=-1))
+        return np.array(align)
+
+    spkpath, outhdf, alihdf = args
+    spkr = spkpath.split('/')[-1]
     # get wav files in specified directory
     wavsin = []
     argout = []
-    for dirpath,_,filename in os.walk(pathin):
+    for dirpath,_,filename in os.walk(spkpath):
         wavsin.extend([os.path.join(dirpath,f) for f in filename if f.split('.')[-1] == 'wav'])
         argout.extend([f.replace('.wav','') for f in filename if f.split('.')[-1] == 'wav'])
     paths = dict(zip(argout, wavsin))
-
-    # filter both ways to ensure only files that exist on both dataframes are
-    # processed
+    
+    ali = h5py.File(alihdf)[spkr]
+    out = h5py.File(outhdf)
     try:
-        dfspk = df.loc[argout].dropna()
+        outspk = out.create_group(spkr)
     except:
-        return
-    files = dfspk.index.unique()
-
-    # if we've calculated the wave feats before, load the file containing
-    # the features dictionary
-    saved = False
-    fileout = os.path.join(pathout, os.path.split(pathin)[-1]) + '.npz'
-    if not overwrite:
-        saved = True
-        if features == 'formant':
-            if os.path.exists(fileout):
-                featdict = np.load(fileout)
-            else:
-                saved = False
-                wavfeats = {}
-        elif features == 'mfcc':
-            featdict = np.load('feats-inti.npz')
-    else:
-        wavfeats = {}
-
-    feats = []
-    for n, f in enumerate(files):
+        outspk = out[spkr]
+    files = list(set(ali.keys()) & set(argout))
+    forfeat = []
+    alifeat = []
+    allf = []
+    for f in files:
         path = paths[f]
         if not os.path.exists(path): continue
-        # calc wave feats: f0-f4 + energy: this is VERY SLOW
-        if not saved and features == 'formant':
-            wavfeat = calcWaveFeats(path, fs, win, b, a)
-            wavfeats[f] = wavfeat
+        if f in outspk.keys():
+            wavfeat = outspk[f]
         else:
-            # if already calculated, load from dict
-            wavfeat = featdict[f]
-            if features == 'mfcc': wavfeat = wavfeat[::-1]
-        # align formant to phone data
-        timing = dfspk.loc[f].time
-        foffset = 200. if features == 'formant' else 100.
-        strides = (foffset*(timing.get_values())).astype(int)
-        end = wavfeat.shape[-1]
-        falign = []
-        for i, s in enumerate(strides):
-            e = strides[i+1] if (i+1) < strides.size else end
-            falign.append(np.mean(wavfeat[:,s:e], axis=-1))
-        feats.extend(np.vstack(falign))
+            # calc wave feats: f0-f4 + energy: this is VERY SLOW
+            wavfeat = calcWaveFeats(path, fs, win, b, a)
+            outspk.create_dataset(name=f, data=wavfeat)
+        # align formant and timing data: DON'T CHANGE CONSTANTS
+        alidata = ali[f].value
+        strides = (200*alidata[:,1]).astype(int)
+        forfeat.extend(alignPhones(wavfeat, strides))
+        alifeat.extend(alidata[:,[0,2]])
+        allf.extend([f]*len(strides))
 
-    if not saved:
-        np.savez_compressed(fileout.replace('.npz',''), **wavfeats)
+    # recreate delta and delta2 features (like in MFCC)
+    alifeat = np.array(alifeat)
+    forfeat = np.array(forfeat)
+    delfor = np.diff(forfeat, axis=0)
+    deldelfor = np.diff(delfor, axis=0)
+    zero = np.zeros((1, forfeat.shape[-1]), dtype=float)
+    delfor = np.vstack((delfor, zero))
+    deldelfor = np.vstack((deldelfor, zero, zero))
+    forfeat = np.hstack((forfeat, delfor, deldelfor))
+
+    try:
+        feats = pd.DataFrame(np.hstack((alifeat, forfeat)), index=allf, columns=['phon', 'dur']+range(forfeat.shape[-1]))
+        sys.stdout.flush()
+        return feats
+    except:
+        print(spkr)
+        print(forfeat.shape)
+        print(alifeat.shape)
+        print(len(allf))
+        return
+        #return forfeat, alifeat, allf
+
+def calcFormants(wavpath, outfile, alifile):
+    args = [[os.path.join(wavpath, path), outfile, alifile] for path in os.listdir(wavpath)]
+    pool = mp.Pool(mp.cpu_count())
+    formants = pool.map(calcFormantsParallel, args)
+    pool.close()
+    pool.terminate()
+    pool.join()
+
+    return formants
+
+    np.savez_compressed(fileout.replace('.npz',''), **wavfeats)
 
     feats = np.array(feats)
     numfeats = feats.shape[1]
