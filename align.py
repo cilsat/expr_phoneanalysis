@@ -395,7 +395,7 @@ def viewPerPhone(dfp, attr=None):
         dfpp = pd.DataFrame([np.mean(dfp.ix[p, 4:].values, axis=0) for p in phones], index=phones, columns=dfp.columns[4:])
     return dfpp
 
-def classify(dfin, clf='svm'):
+def classify(dfin, clf='svm', ret=False):
     from sklearn.cross_validation import KFold
     from sklearn.metrics import f1_score
 
@@ -426,7 +426,8 @@ def classify(dfin, clf='svm'):
     misses = pd.concat(misses)
     misscount = (100*(misses.groupby([misses.lbl]).count().iloc[:,0].astype(float)/df.groupby([df.lbl]).count().iloc[:,0]).values).tolist()
     print(misscount+[100-100*np.mean(scores), np.var(scores)])
-    return misses
+    if ret:
+        return misses
 
 def getAcFeats(df):
     def normalize(x):
@@ -449,7 +450,10 @@ def getAcFeats(df):
     dfdm = dfd.mean().apply(normalize)
     dfdv = dfd.var().apply(normalize)
 
-    return pd.concat((dfm, dfv, dfdm, dfdv, lbl), axis=1)
+    fe = pd.concat((dfm, dfv, dfdm, dfdv, lbl), axis=1)
+    fe.dropna(inplace=True)
+
+    return fe
 
 def predictSponRead(attrs):
     from sklearn.linear_model import SGDClassifier
