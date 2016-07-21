@@ -1,0 +1,53 @@
+structure:
+- introduction:
+    - spontaneous is difficult, despite dictated successful
+    - spontaneous underrepresented in training data: it's tough to collect
+    - they're pretty different acoustically and linguistically
+    - a couple of approaches to improve spontaneous performance
+    - importance of investigating these differences comprehensively
+    - let's take a look at the acoustics
+
+- related work:
+    - furui, nakamura, ichiba, iwano: spectral reduction
+    - hoesen: similar but specifically for Indonesian
+    - model adaptation approach
+    - model switching/weighting approach
+
+- corpus:
+    - source and purpose
+    - overview
+        - number of speakers
+        - number of files
+        - duration
+        - speaker characteristics
+
+- analysis:
+    - general approach to analysis
+    - description of workflow/environment
+    - feature extraction:
+        - transcripts and alignment
+        - description and brief reasoning behind features
+        - obtaining the features
+    - differences at the phone level
+    - differences at the speaker level
+    - differences at the gender/dialect/age level
+    - observations
+
+- classification:
+    - classifying speech segments without phone information is attractive
+    - segments are a logical choice cos of length
+    - feature extraction:
+        - features for classification differ somewhat from analysis
+        - choice of acoustic features
+        - PCA/dimensionality reduction
+        - combinations of features
+    - classification:
+        - SVM as a first choice
+        - suitability of data
+    - experiments and results:
+        - cross validation and testing set
+        - configuration and combinations
+        - classification results
+
+- conclusion and future work
+    

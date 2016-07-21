@@ -4,11 +4,12 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{graphicx}
+\usepackage{tipa}
 
 \makeatletter
 \def\BState{\State\hskip-\ALG@thistlm}
 \makeatother
-   
+
 \newcommand{\argmax}{\arg\!\max}
 
 % correct bad hyphenation here
@@ -36,16 +37,17 @@
 
 \begin{abstract}
 The accurate recognition of spontaneous speech is crucial in achieving practical speech recognition.
-Due to the difficulties associated with the collection and labelling of spontaneous speech, a larger amount of dictated speech recorded from prepared transcripts is commonly utilized in the training of statistical-based speech recognition systems.
-Unfortunately, such systems often suffer from poor spontaneous speech recognition performance.
-In an effort to improve spontaneous recognition performance, we attempt to pinpoint the differences between spontaneous and dictated Indonesian speech.
-At the phone level, we find that there are differences in the distribution and pronunciation of phones between conversational and written Indonesian.
-More generally, conversational/spontaneous Indonesian is generally spoken faster and softer than its written/dictated form.
-Using these differences as a starting point, we show that it is possible to classify Indonesian speech segments as being spontaneous or dictated based on a small number of simple features including segment duration and average log energy levels.
+Statistical-based recognition models typically employ a large amount of read or dictated speech for training, which often yields poor spontaneous recognition performance.
+Many approaches have been forwarded to improve performance, including model adaptation and model switching.
+In an effort to improve Indonesian language spontaneous recognition performance, we attempt to pinpoint the acoustic differences between spontaneous and dictated Indonesian speech.
+At the phoneme level, we find that there are differences in the distribution and pronunciation of several key phonemes associated with filled pauses.
+Across speakers, there is a consistent reduction in segment duration and segment energy, with a less marked spectral reduction.
+Using these differences as a starting point, we train an SVM that classifies spontaneous and read Indonenesian utterances at 75\% and 87\% accuracy, respectively.
+We show that it is possible to obtain this classification by considering segment acoustic features and differences between consecutive segments.
 \end{abstract}
 
 \begin{IEEEkeywords}
-speech recognition, 
+speech recognition,
 \end{IEEEkeywords}
 
 \IEEEpeerreviewmaketitle
@@ -63,7 +65,7 @@ In addition, although spontaneous recognition is an important component of pract
 Spontaneous and dictated speech also differ in various ways.
 It has been proposed that spontaneous speech is less ordered both linguistically and acoustically \cite{nakamura1}, and differs spectraclly from dictated speech \cite{nakamura2}.
 Spontaneous speech contains filled pauses, repairs, hesitations, repetitions, and disfluencies, which are largely absent in dictated speech.
-The exact differences vary by language, with some languages exhibiting a strong tonal difference between spontaneous and dictated speech \cite{spanish}.
+The exact differences vary by language, with some languages exhibiting a strong tonal difference between spontaneous and dictated speech \cite{spanish}\cite{dwello}.
 Speech disfluencies also differ between language and speaker; each language, dialect, or speaker may have their own set of specific disfluencies and patterns.
 
 A number of methods have been developed to improve spontaneous speech recognition performance.
@@ -72,20 +74,40 @@ In the second approach, acoustic and language models for spontaneous and dictate
 Model switching relies on a reliable way to differentiate between spontaneous and dictated speech that is independent of the specific acoustic models.
 
 In either case, it is instructive to understand how acoustic differences between spontaneous and dictated speech manifest and how to describe them.
-At the temporal level, speech audio data is represented as audio samples taken at a particular sampling rate.
-A constant number of (overlapping) audio samples are processed in a frame to obtain low level spectral, cepstral, and energy features.
-A segment, comprised of a varying number of such frames, represents a single phoneme, the smallest linguistic unit.
-Linguistically, phonemes are organized into words and sentences.
-For the purposes of our acoustic analysis, however, linguistic units are ignored and we instead consider utterances as sequences of segments.
-In addition to the temporal level, a number of high level 'metadata' features are also considered acoustically important.
-These features are the specific speaker of an utterance, their gender, dialect, and age.
+With a better understanding of these differences we can train better specialized models for spontaneous or mixed speech, for example utilizing the model switching approach.
+The goal is to achieve a reasonably performant "front-end" classifier that can pass data to a number of back-end models specialized for the task at hand.
+
+In the following sections we describe the relevant literaturea and the speech corpus used for analysis.
+We then discuss at length the various phoneme-level differences between spontaneous and read speech in the Indonesian language.
+Finally we attempt to engineer segment-level acoustic features and utilize this feature set to classify segmented utterances.
 
 \section{Related Works}
+
+Furui has shown that there is a substantial difference in the spectral properties of vowels between read and spontaneous speech \cite{furui1}.
+In this approach, differences between phoneme vectors of varying styles and their centers are compared using the following formulation:
+
+This can be interpreted
+In this approach, MFCC features are taken
+
+The literature suggests that many spontaneous speech 
 
 Wang, et al. \cite{wang} proposed an incremental ensemble method called Accuracy-Weighted Ensembles (AWE).
 It is a weighted majority ensemble algorithm with the weight is calculated based on error reduction analysis.
 Each classifier $c_i$ is given a weight reversely proportional to the expected error MSE$_i$.
 The weight is then calculated as $w_i = \text{MSE}_i - \text{MSE}_r$ where $\text{MSE}_r$ is the mean square error of a random classifier.
+
+AWE proposed by Wang, et al. \cite{wang} is used as ensemble method for our approach.
+Its weighting method is based on expected error of classifier.
+We compute the mean square error of classifier $c_i$ by using formula
+\[\text{MSE}_i = \frac{1}{|S|} \sum_{(x,y) \in S} (1 - f_i^y(x))^2\]
+where $S$ is the latest chunk of training data, $(x,y)$ is a record in $S$ with $y$ is the true label, and $f_i^y(x)$ is the probability given by $c_i$ that $x$ is an instance of label $y$.
+And then, the mean square error of each label according to its distribution is
+\[\text{MSE}_r = \sum_{c} p(c)(1-p(c))^2\]
+Finally, the weight $w_i$ of a classifier $c_i$ is computed with formula
+\[w_i = \text{MSE}_r - \text{MSE}_i\]
+$\text{MSE}_r$ does not contain useful information about the data.
+It is only used as a threshold to discard classifiers from ensemble.
+We eliminate classifiers that have negative weight, which means their error is equal or larger than $\text{MSE}_r$.
 
 Another ensemble method for incremental learning is Streaming Ensemble Algorithm (SEA) \cite{street}.
 It combines decision tree models using majority-voting.
@@ -109,146 +131,286 @@ The first two methods of algorithm adaptation are the extension of AdaBoost algo
 MLkNN is the adaptation of kNN algorithm which uses kNN separately for each label then determines the k closest instances to the tested one.
 Adaboost.MH and Adaboost.MR perform well in terms of one error, coverage, ranking loss and average precision, while MLkNN performs better in terms of hamming loss \cite{zhang}.
 
-\section{Perisalah Corpus}
+\section{Speech Corpus}
 
-The Perisalah Corpus is a collection of spontaneous and dictated speech recordings obtained for the development of the Perisalah Speech Recognition System \cite{} in collaboration with PT. Inti, an Indonesian public telecommunications company.
-The corpus was designed to sample a large variety of different age groups and local dialects for the purpose of building models suited to recognising high level government meetings at both the national and regional levels.
+The Perisalah Corpus is a collection of spontaneous and read speech recorded for the development of the Perisalah Speech Recognition System \cite{} in collaboration with PT. Inti, an Indonesian public telecommunications company.
+The corpus samples a variety of different age groups and local dialects.
+The meeting transcription system is being deployed at various government institutions at the national and regional levels.
 The read/dictation part of the corpus was build to be lexically balanced with respect to written Indonesian.
 
 \subsection{Corpus Overview}
 
-The corpus, after cleaning, consists of 297 native Indonesian speakers, with on average 275 dictated and 61 spontaneous utterances per speaker, totalling 81240 dictated and 18210 spontaneous utterances, respectively.
+After cleaning, the corpus consists of 297 native Indonesian speakers, with on average 275 dictated and 61 spontaneous utterances per speaker, totalling 81240 dictated and 18210 spontaneous utterances, respectively.
 On average, dictated utterances are 6.54 seconds long and spontaneous utterances 8.33 seconds long for a total of 147.6 and 42.1 hours of dictated and spontaneous speech, respectively.
 
 Demographically, speakers were taken from both genders roughly equally, with 143 male speakers and 154 female speakers.
-The distribution of dialects was unfortunately limited by the availability of speakers at the time of recording, with a disproportionate number of Sundanese speakers.
-The sampled dialects were Javanese, Sundanese, Minang, Batak, Betawi/Melayu, Balinese, Sulawesi, and Maluku/Papua.
+Fig. \ref{demographics1} shows the distribution of genders across dialects, the sampled dialects being Javanese (J), Sundanese (S), Minanga (M), Batak (T), Betawi/Melayu (A), Balinese (B), Sulawesi (W), and Maluku/Papua (P).
 Roughly 57\% of Indonesians live on Java, where the Javanese, Sundanese, and Betawi/Melayu dialects originate.
-
-Two age groups were defined, "young" being 40 years of age of under, and "old" being above 40 years of age.
-242 speakers fell into the first category and 52 the latter, with 3 undefined.
-
-AWE proposed by Wang, et al. \cite{wang} is used as ensemble method for our approach.
-Its weighting method is based on expected error of classifier.
-We compute the mean square error of classifier $c_i$ by using formula
-\[\text{MSE}_i = \frac{1}{|S|} \sum_{(x,y) \in S} (1 - f_i^y(x))^2\]
-where $S$ is the latest chunk of training data, $(x,y)$ is a record in $S$ with $y$ is the true label, and $f_i^y(x)$ is the probability given by $c_i$ that $x$ is an instance of label $y$.
-And then, the mean square error of each label according to its distribution is
-\[\text{MSE}_r = \sum_{c} p(c)(1-p(c))^2\]
-Finally, the weight $w_i$ of a classifier $c_i$ is computed with formula
-\[w_i = \text{MSE}_r - \text{MSE}_i\]
-$\text{MSE}_r$ does not contain useful information about the data.
-It is only used as a threshold to discard classifiers from ensemble.
-We eliminate classifiers that have negative weight, which means their error is equal or larger than $\text{MSE}_r$.
-
-Adaboost.MH and Adaboost.MR is based on boosting ensemble method.
-Even though they provide what we need: ensemble-multilabel classifier, we can not employ one of these methods because they do not handle incremental learning.
-Since BR is the most widely used method \cite{santos}, has low computational complexity \cite{cherman}, simple, and easy to use, we use this as our multilabel classifier.
-BR transforms multilabel classification problem by using $l$ single-label classifier, where $l$ is the number of label.
-All single-label classifier is trained using the same training data but with different label.
-When classifying documents, each single-label classifier classify the documents to label it handles.
-The classification result is multilabel consisting of each single label.
-
-\subsection{Corpus Analysis}
-
-Suppose we have chunks of training data $S = {S_1, S_2, ..., S_n}$.
-We perform indexing procedure that consists of case folding, tokenization, stop words elimination, stemming, and TF-IDF weighting.
-Every chunks will be processed the same way by all of indexing procedure steps, except TF-IDF weighting.
-It is because each chunk will have its own feature set.
-That being said, we only need one case folder, tokenizer, stop words eliminator, and stemmer, but different TF-IDF transformer for each chunk.
-
-In training step, each chunk of documents will be transformed into TF-IDF weights resulting in a TF-IDF transformer that consists of vocabulary or word set and their document frequency, depends on the contents of documents in the chunk.
-After that, a classifier is trained using TF-IDF weights for each chunk.
-We, then, weight each classifier in the ensemble using $\text{MSE}_r$ and $\text{MSE}_h$.
-The resulting product is an ensemble consists of classifiers that accompanied by its weight and TF-IDF transformer.
-
-There are two condition that makes us remove a classifier in the ensemble.
-First, when there exists an ensemble member that has weight less or equal zero.
-If a classifier has error larger than $\text{MSE}_r$, it means it does not perform well in classifying current training data.
-We discard this classifier from ensemble because it is not good enough to be used in future classifying task, assuming the current training data represents what the next training data will be.
-Second condition occurs if we have a limit to the number of ensemble members.
-When we train a new classifier from new chunk of training data while the number of classifiers in the ensemble has already reached its limit, we remove a classifier from the ensemble and add the new classifier to it.
-Classifier weight is used to determine which classifier we remove.
-If there is $k$ limit of classifiers, we choose the top $k$ weighted classifiers, including the new one.
-Because of the weight is reversly proportional to the classifier expected error, we can expect the top $k$ classifiers as the best classifiers.
-
-In multilabel classification setup, the topology is not an ensemble of BR classifiers.
-But instead, it is a BR classifier of ensemble where the ensemble members are single-label classifiers.
-Fig. \ref{ensemble_of_br} and Fig. \ref{br_of_ensemble} illustrates ensemble of BR and BR of ensemble respectively.
-If we have 10 labels and the ensemble has 4 members, there will be one BR classifier consists of 10 ensembles, each ensemble classifies one label.
-And then, each ensemble will consist of 4 single-label classifier.
-That means, the total number of classifiers we create is $10 \times 4 = 40$ classifiers.
-We understand that the tradeoff of using this approach is there will be a lot classifiers.
+Two age groups were defined; ages 40 years and under, and ages above 40 years, with 243 and 53 speakers, respectively.
 
 \begin{figure}[!htb]
 \centering
-%\includegraphics[width=3.5in]{ensemble-of-br}
-\caption{Ensemble of BR.}
-\label{ensemble_of_br}
+\includegraphics[width=3.0in]{demographics1_bw}
+\caption{Number of members of each gender for each dialect}
+\label{demographics1}
 \end{figure}
+
+Utterances for prepared texts were taken from newspaper articles and magazines, and hence derived from real-world examples, albeit written ones.
+A total of ten different sets were compiled, labelled from 'A' to 'J'.
+Speakers were recorded in a single session, with read speech recorded first and spontaneous speech afterwards.
+For spontaneous speech, speakers were asked to choose an arbitrary topic in which they were comfortable with and thus asked to speak at length about it.
+
+Fluency of speech varies greatly within the corpus, with some participants experiencing difficulties reading fluently, while others were highly uncomfortable when told to improvise a topic.
+Utterances for spontaneous speech were segmented by hand; that is, the start and end of sentences is dependent on the studio operator's comprehension of the speech, although supervision was provided.
+Hence, using the duration of utterances as a metric should be done with caution.
+
+\subsection{Acoustic feature extraction}
+
+Speech audio data is represented as audio samples taken at a particular rate.
+A constant number of (overlapping) audio samples are processed in a frame to obtain low level spectral, cepstral, and energy features.
+A segment, comprised of a varying number of such frames, represents a single phoneme.
+For the purposes of our acoustic analysis, linguistic units other than the phoneme are ignored and we instead consider utterances as sequences of segments.
+In addition to frame and segment-level acoustic information a number of high level features are obtained at the utterance and speaker levels, namely the specific speaker of an utterance, their gender, dialect, and age.
+
+Using segments as the smallest unit of analysis is attractive and practical for many reasons.
+Analysis of individual frames is impractical on very large datasets due to the computational load.
+In addition, as we shall see, utilizing sequences of segments leads to usable spontaneous/read classification results at a relatively low latency and computational/memory overhead.
+On the other hand, the identification of segment boundaries is usually accomplished by first training a HMM.
+
+In order to obtain training data segments, forced alignment was conducted on the corpus using a pretrained HMM built using the Kaldi toolkit.
+The segment duration and location in the utterance in seconds and phone was obtained for each utterance in the corpus.
+171 phones were defined including fillers, silence, and other non-speech phones.
+The 64 most common phones calculated by frequency of appearance in the corpus are displayed in Table \ref{phones}.
+These phones account for 98.15\% of the segment occurences in the corpus.
+Voiced phones are further separated as belonging to the beginning, inside, or end of a word, indicated by a 'B', 'I', and 'E' suffix, resepectively.
+The '@' symbol represents the phonetic '\textipa{@}'.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+\caption{Common phones}
+\label{phones}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+    \hline
+    @\_B & @\_E & @\_I & a\_B & a\_E & a\_I & b\_B & b\_I\\
+    \hline
+    c\_B & c\_I & d\_B & d\_I & e\_B & e\_I & f\_B & f\_I\\
+    \hline
+    g\_B & g\_I & h\_B & h\_E & h\_I & i\_B & i\_E & i\_I\\
+    \hline
+    j\_B & j\_I & k\_B & k\_E & k\_I & l\_B & l\_E & l\_I\\
+    \hline
+    m\_B & m\_E & m\_I & n\_B & n\_E & n\_I & ng\_E & ng\_I\\
+    \hline
+    ny\_I & o\_B & o\_E & o\_I & p\_B & p\_E & p\_I & r\_B\\
+    \hline
+    r\_E & r\_I & s\_B & s\_E & s\_I & sil & t\_B & t\_E\\
+    \hline
+    t\_I & u\_B & u\_E & u\_I & w\_B & w\_I & y\_B & y\_I\\
+    \hline
+\end{tabular}
+\end{table}
+
+Utilizing alignment information regarding duration and location of segments, frame features were generated or inserted, frames aligned to the correct semgent, and then averaged for each segment.
+The segment features obtained this way are segment-averaged formants (generated) and MFCCs (inserted).
+The first four formants of each frame were calculated by solving the Linear Predictive Coefficients (LPC) of each frame in the frame alignment subroutine.
+The first 13 MFCCs were obtained during the pretraining of the segmentation HMM through the Kaldi toolkit, using the training defaults including Cepstral Mean Subtraction (CMS).
+The delta and delta-delta features were calculated manually during frame alignment.
+Apart from averaged frames, features at the segment level include segmental duration and location, and segment label in terms of phoneme. 
+The complete list of features is shown in Table \ref{features}.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+\caption{Acoustic features}
+\label{features}
+\centering
+\begin{tabular}{|l|r|r|r|r|r|}
+    \multicolumn{1}{c}{} \textbf{Segment-level features}\\
+    \hline
+    Cepstral (36) & MFCC 12 + $\Delta$12 + $\Delta\Delta$12\\
+    \hline
+    Log energy (3) & MFCC 1 + 1$\Delta$ + 1$\Delta\Delta$\\
+    \hline    Temporal (2) & Duration 1 + Position 1\\
+    \hline
+    Spectral (4) & Formants 4 F0 - F4\\
+    \hline
+    \multicolumn{1}{c}{} \textbf{Utterance-level features}\\
+    \hline
+    Utterance ID (1) & Utterance number\\
+    \hline
+    Label (1) & Spontaneous or dictated\\
+    & 'Z' for spontaneous or\\
+    & one of 'A' - 'J' for dictated\\
+    \hline
+    \multicolumn{1}{c}{} \textbf{Speaker-level features}\\
+    \hline
+    Speaker ID (1) & Speaker number\\
+    \hline
+    Gender (1) & Female or male\\
+    \hline
+    Dialect (1) & Jawa (J), Sunda (S)\\
+    & Minang (M), Batak (T)\\
+    & Betawi/Melayu (A)\\
+    & Bali (B), Sulawesi (W)\\
+    & or Maluku/Papua (P)\\
+    \hline
+    Age group (1) & Young (M) or old (L)\\
+    \hline
+\end{tabular}
+\end{table}
+
+\subsection{Phone analysis}
+
+The analysis of data that follows is primarily exploratory, focusing on phone-level differences and with the secondary goal of obtaining feature configurations that maximizes the distance between spontaneous and dictated speech.
+In this section the data is unnormalized unless where stated to allow for easier interpretation.
+
+A high level view of the data is obtained by first grouping phones into spontaneous and dictated classes and subsequently averaging the segment features in both groups over all utterances and speakers.
+This view is filtered such that only phones of frequencies above 0.001\% in both dictated and spontaneous scenarios are processed further; for a typical speaker, this amounts to six spontaneous occurences of that phone in total.
+From this view, differences in phone frequency and average duration per phone between spontaneous and dictated speech are noticeable.
+Table \ref{freq_dur_diff} illustrates this point; the differences in average occurence frequency in percentage points over all common phones between spontaneous and dictated speech are calculated and sorted, with the top and bottom ten results displayed in the upper and lower sections, respectively.
+This is similarly done for average duration and log energy, with results displayed to the right of the table.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+\caption{Most distant phones in terms of Frequency, Duration, and Log energy}
+\label{freq_dur_diff}
+\centering
+\begin{tabular}{|l|r|r|r|r|r|}
+    \hline
+    Phon & Frequency\% & Phon & Duration(s) & Phon & Log Energy\\
+    \hline
+    e\_I  & -1.303714 & sil  & -0.097187  & e\_B & -5.482111 \\
+    sil  & -0.753674  & o\_E  & -0.066367 & a\_B & -4.703623 \\
+    o\_I  & -0.643983 & e\_B  & -0.038929 & @\_I & -4.695232 \\
+    m\_I  & -0.446265 & i\_B  & -0.031062 & e\_I & -4.610722 \\
+    l\_I  & -0.364059 & f\_B  & -0.030189 & a\_I & -4.337959 \\
+    s\_I  & -0.289272 & y\_B  & -0.030112 & o\_I & -4.163954 \\
+    r\_I  & -0.257801 & e\_I  & -0.028282 & l\_I & -3.586154 \\
+    b\_I  & -0.242627 & j\_B  & -0.027528 & i\_I & -3.566285 \\
+    r\_E  & -0.238013 & g\_B  & -0.027018 & r\_I & -3.450573 \\
+    p\_B  & -0.236948 & w\_B  & -0.026554 & u\_I & -3.024451 \\
+    \hline
+    t\_I  &  0.329166 & k\_E  & -0.006259 & k\_I &  0.999814 \\
+    ny\_I &  0.368012 & l\_E  & -0.005862 & p\_I &  1.066118 \\
+    ng\_E &  0.384281 & i\_I  & -0.004152 & o\_E &  1.138495 \\
+    @\_E  &  0.432411 & @\_I  & -0.003671 & t\_B &  1.221219 \\
+    y\_B  &  0.436475 & n\_E  & -0.002305 & t\_I &  1.236945 \\
+    u\_E  &  0.502933 & u\_I  & -0.001642 & p\_B &  1.387123 \\
+    @\_I  &  0.508262 & h\_E  &  0.007077 & k\_E &  1.421851 \\
+    @\_B  &  0.525272 & ng\_E &  0.009034 & t\_E &  1.719993 \\
+    a\_E  &  0.557744 & m\_E  &  0.010114 & @\_B &  1.924112 \\
+    h\_E  &  0.960796 & @\_B  &  0.163624 & sil &  2.854659 \\
+    \hline
+\end{tabular}
+\end{table}
+
+Phones higher up on the table exhibit a larger difference between their dictated and spontaneous versions given the particular measure.
+For example, the phone 'e\_I' is overrepresented and 'h\_E' underrepresented in the dictated corpus with respect to the spontaneous.
+The 'sil' phone, in all cases positioned at the extremes of the table, may be an indicator of uneven quality of data, a result of mislabelled or unlabelled spontaneous speech or differences in the noise floor of audio recordings.
+
+The phones on the upper half of the duration column tend to be situated at the beginning of words while those at the bottom tend not to.
+The exception to the rule is '@\_B', a common filled pause in Indonesian and many other languages, which is voiced longer than its dictated counterpart by the widest margin.
+The prevalence of word-opening phones at the top and closing phones at the bottom may be indicative of a tendency for Indonesian speakers to rush through the beginnings of words and slow down towards the ends.
+
+Finally, the bottom section of the log energy column is populated mostly by plosives, showing that spontaneous plosives are louder on average than dictated plosives.
+A possible explanation for this is speakers exerting less conscious control over their speech during spontaneous scenarios.
+The top two phones, 'e\_B' and 'a\_B', are in Indonesian often followed by a stressed syllable, which may be less exaggerated in dictation scenarios.
+
+
+The remaining acoustic features are analyzed to obtain their phone relationships in a similar manner, as seen in Table \ref{mfc_frm}.
+In analyzing both MFCCs and formants, the log energy components are discarded and the standardized Euclidian distances between spontaneous-dictated phone pairs are aggregated over all segments.
+The results from formant analysis show only small differences between phones and low variance ($var = 0.201$), hence averaged formant features are not optimal indicators of phone differences between styles.
+On the other hand, the results of cepstral analysis show large differences but are difficult to interpret correctly.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+\caption{Most distant phones in terms of MFCC and Formants}
+\label{mfc_frm}
+\centering
+\begin{tabular}{|l|r|r|r|r|r|}
+    \hline
+    Phon & MFCC dist & Phon & Formant dist \\
+    \hline
+    k\_E  &  0.962761 & l\_E  &  0.435130 \\
+    sil   &  1.001989 & ng\_E &  0.467932 \\
+    t\_E  &  1.003554 & @\_E  &  0.472607 \\
+    g\_I  &  1.201156 & l\_I  &  0.474154 \\
+    s\_E  &  1.277621 & h\_I  &  0.486802 \\
+    \hline
+    g\_B  &  3.254625 & u\_B  &  1.924788 \\
+    u\_E  &  3.319732 & g\_B  &  1.973173 \\
+    y\_B  &  3.424861 & e\_B  &  1.979410 \\
+    u\_B  &  3.507406 & i\_B  &  2.063410 \\
+    @\_B  &  6.020622 & @\_B  &  2.625621 \\
+    \hline
+\end{tabular}
+\end{table}
+
+Grouped by single phones (without suffixes), variance in the differences is less pronounced, though some trends emerge; plosives and fricatives all cluster towards the bottom end of the log energy measure indicating louder spontaneous phones.
+For the phonemes for which all three variants are well represented in the data, by assessing the distance between phone variants and their averages, we gain a sense of how important the phoneme's position within the word is towards its acoustic characteristics.
+The data suggests that position-in-word disproportionately affects the acoustics of plosive and fricative phonemes.
+This is unsurprising, as in Indonesian fricatives and plosives at word ends are usually unvoiced.
+
+Additional views are generated by grouping phonemes by high level features, namely gender, dialect, and age.
+The average feature vector for each grouping, phoneme, and style is calculated, the Euclidean distance between each spontaneous-dictated phoneme pair obtained, and the standard deviation of the resulting values is taken.
+This is interpreted as a measure of the variety in the amount by which spontaneous and dictated speech differs between genders, dialects, and ages.
+On average, spontaneous-dictation distances vary little between group members, with the exception of distances across dialects, as seen in Table \ref{group_dist}.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+    \caption{Top and Bottom standard deviation in spontaneous-dictated distances for Gender, Dialect, and Age groupings}
+\label{group_dist}
+\centering
+\begin{tabular}{|l|r|r|r|r|r|}
+    \hline
+    \multicolumn{2}{|c|}{\textbf{Gender}} &
+    \multicolumn{2}{|c|}{\textbf{Dialect}} &
+    \multicolumn{2}{|c|}{\textbf{Age}} \\
+    \hline
+    Phon & Dist & Phon & Dist & Phon & Age \\
+    \hline
+    ny\_I &  0.000403 & t\_B  &  0.047636 & t\_E  &  0.012024 \\
+    e\_I  &  0.002478 & h\_B  &  0.048427 & ny\_I &  0.012065 \\
+    r\_E  &  0.003271 & d\_I  &  0.050404 & u\_E  &  0.015328 \\
+    l\_E  &  0.003325 & n\_I  &  0.051392 & w\_B  &  0.015333 \\
+    g\_I  &  0.004378 & sil  &  0.051638 & h\_E  &  0.018801 \\
+\hline
+    m\_E  &  0.189082 & g\_B  &  0.212091 & g\_I  &  0.167430 \\
+    e\_B  &  0.213758 & c\_I  &  0.225610 & k\_B  &  0.171539 \\
+    c\_B  &  0.225976 & o\_E  &  0.242959 & o\_I  &  0.172099 \\
+    y\_B  &  0.228350 & f\_B  &  0.305656 & u\_B  &  0.196584 \\
+    i\_B  &  0.269465 & e\_B  &  0.394694 & l\_E  &  0.216593 \\
+    \hline
+    Mean  &  0.008207 & Mean  &  0.125000 & Mean  &  0.822268 \\
+    \hline
+\end{tabular}
+\end{table}
+
+Lastly, all segment features were normalized and the 2-dimensional PCA transformation of each phone calculated to get a sense of how they related spatially.
+Fig. \ref{phon_pca} shows a 2-dimensional representation of the complete set of features of all common phones, with their distances represented as dashed lines between pairs.
+Although distances between points in a pair are discernible, they often overlap with other phone pairs.
+There is no obvious separation between spontaneous and dictated phones in general using this feature set.
 
 \begin{figure}[!htb]
 \centering
-%\includegraphics[width=3.5in]{br-of-ensemble}
-\caption{BR of ensemble.}
-\label{br_of_ensemble}
+\includegraphics[width=3.25in]{perphon_dist1}
+    \caption{Differences and positions of dictated-spontaneous phone pairs in 2-D space}
+\label{phon_pca}
 \end{figure}
 
-Note that what we remove from the ensemble is ensemble member.
-If the member is BR, we will remove the BR classifier with all single-label classifiers it contains.
-This is not right when the other single-label classifiers performs well.
-We need a topology that allows us to remove only one single-label classifier without removing the others.
-That is why we choose BR of ensemble topology where the member is single-label classifier.
-It is allows us to remove single-label classifier from ensemble without removing the other.
-With $L$ ensembles, we can contain them in a single BR to have a multilabel classifier of $L$ labels.
+\subsection{Segment Analysis}
 
-Each single-label classifier will be accompanied by one TF-IDF transformer.
-But, in different ensemble, there may be more than one classifiers uses the same TF-IDF transformer.
-For effiency, we should not use one-to-one relationship of TF-IDF transformer and classifier.
-Instead, we use one-to-many relationship, which means one TF-IDF transformer can be used by many classifiers.
-For the sake of simplicity, we do not consider this efficency aspect in the next explanation.
-We treat accompanionship of TF-IDF transformer and classifier as one-to-one relationship.
+General differences in spontaneous and dictated speech are observable from phoneme analysis.
+Though useful for gaining insight as to why an existing model performs poorly, it is practical to be able to separate spontaneous and dictated speech in the absence of linguistic/grammatical information such as phones and (position in) words.
+In the subsequent sections we shift the focus away from phones and the exploration of overarching differences between spontaneous and dictated speech, towards "anonymous" segments and the task of classifying spontaneous and dictated utterances. 
 
-Note that each TF-IDF transformer covers its own word set.
-When OOV occurs, we can train a new TF-IDF transformer and a classifer using new training data that contains OOV words and add it to the ensemble.
-That being said, we can always cover new words using this strategy, hence OOV condition can be handled.
-Training procedure is summarized in Algorithm \ref{algo_train}.
+Based on insight from the analysis of phones in the previous section, a variation of the feature extraction pipeline is implemented whereby for each segment, in addition to the previous features, the difference in features against the preceding segment, henceforth "delta segments", are also extracted.
+The purpose of these features is to embed local temporal information at the segment level.
 
-\begin{algorithm}[!htb]
-\caption{Training procedure}
-\label{algo_train}
-\begin{algorithmic}
-\Procedure{Train}{}
-    \BState \emph{input}:
-        \State $S$: new chunk
-        \State $k$: maximum number of classifiers
-        \State $L$: labels
-        \State $B$: Binary Relevance (BR) classifier of $|L|$ ensembles
-    \BState \emph{algorithm}:
-        \State fit TF-IDF transformer $f^{new}$ on $S$
-        \State transform $S$ into $D^{new}$ by $f^{new}$
-        \For {$l \in L$}
-            \State train classifier $c_l^{new}$ on $D^{new}$ using label $l$
-            \State compute weight $w_l^{new}$ of $c_l^{new}$
-            \For {$c_l^i \in B_l$ (label $l$ ensemble in BR)}
-                \State transform $S$ into $D_l^i$ by $f_l^i$
-                \State apply $c_l^i$ on $D_l^i$ using label $l$ to derive $MSE_i$
-                \State compute weight $w_l^i$ of $c_l^i$
-            \EndFor
-            \State $B_l \gets k$ of the top weighted classifiers in $B_l \cup \{c_l^{new}\}$
-            \State remove negative weighted classifiers in $B_l$
-        \EndFor
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
+To evaluate the feasibility of the feature set the segment data is first grouped into utterances and the average duration of spontaneous and dictated segments calculated.
+The duration and intensity of spontaneous segments vary widely as compared to dictated speech; the standard deviation in duration and intensity in the examined corpus is an order of magnitude larger for spontaneous speech as compared to dictated.
 
-\subsection{Segment Classification}
-
-The first step is top-down procedure.
-The document we want to classify is "sent" to the system, BR of ensembles.
-The BR forwards this document to all ensembles.
-Each ensembles forwards the document to every single-label classifier.
-TF-IDF transformer in each classifier performs indexing to this document and then the classifier performs classification.
+As in the previous section, frame features are first averaged over segments using the full acoustic feature set described in the previous section.
 
 The process is continued with bottom-up procedure.
 Each ensemble in the system votes the label class.
@@ -258,272 +420,41 @@ The voting rule is formalized by
 where $\hat{y}$ is the ensemble result of label class, $C \rightarrow y$ is classifiers that predict $y$, and $w_c$ is the weight of the classifier.
 And then, the result of each ensemble is combined to make one multilabel class of the document.
 
-This procedure is summarized in Algorithm \ref{algo_classify}
-
-\begin{algorithm}[!htb]
-\caption{Classification procedure}
-\label{algo_classify}
-\begin{algorithmic}
-\Procedure{Classify}{}
-    \BState \emph{input}:
-        \State $s$: a document
-        \State $L$: labels
-        \State $B$: Binary Relevance (BR) classifier of $|L|$ ensembles
-    \BState \emph{output}:
-        \State $Y$: multilabel result
-    \BState \emph{algorithm}:
-        \For {$l \in L$}
-            \State $W_0 \gets 0 , W_1 \gets 0$
-            \For {$c_l^i \in B_l$ (label $l$ ensemble in BR)}
-                \State transform $s$ into $d_l^i$ by $f_l^i$
-                \State predict $y$ by $c_l^i$ on $d_l^i$
-                \State $W_y \gets W_y + w_l^i$
-            \EndFor
-            \State $Y_l \gets \argmax_y W_y$
-        \EndFor
-        \State \Return $Y$
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-
-\section{Experiment Results and Analysis}
-
-Our data were taken from multilabel corpus constructed by Rahmawati \cite{rahma} and extended with two new datasets.
-We consider one dataset as one chunk, that means there are 3 chunks.
-We also have a test data consists of 100 documents that are different from the previous ones, also taken from \cite{rahma}.
-All chunks and test data are multilabel data with 10 labels.
-Data and label composition are shown in Table \ref{data_compos} and Table \ref{label_compos}.
-The number of words are counted after stop words elimination and stemming performed.
-
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Data composition}
-\label{data_compos}
+\begin{figure}[!htb]
 \centering
-\begin{tabular}{|l|r|r|r|r|r|}
-    \hline
-     & Chunk A & Chunk B & Chunk C & \textbf{Total} & Testing\\
-    \hline    Documents & 690 & 1057 & 1479 & 3226 & 100\\
-    \hline
-    Cardinality & 1.448 & 1.018 & 1.014 & 1.108 & 1.3\\
-    \hline
-    Words & 5548 & 7788 & 8419 & 12286 & 1253\\
-    \hline
-\end{tabular}
-\end{table}
+\includegraphics[width=3.2in]{nseg_per_utt_bw}
+\caption{Number of members of each gender for each dialect}
+\label{demographics1}
+\end{figure}
 
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Label composition}
-\label{label_compos}
+\section{Utterance Classification}
+
+
+\section{Results and Analysis}
+
+\begin{figure}[!htb]
 \centering
-\begin{tabular}{|c|r|r|r|r|r|}
-    \hline
-    Label & Chunk A & Chunk B & Chunk C & \textbf{Total} & Testing\\
-    \hline    1 & 100 & 92 & 150 & 342 & 7\\
-    \hline    2 & 100 & 120 & 150 & 370 & 25\\
-    \hline    3 & 100 & 115 & 150 & 365 & 17\\
-    \hline    4 & 100 & 108 & 150 & 358 & 6\\
-    \hline    5 & 100 & 91 & 150 & 341 & 19\\
-    \hline    6 & 100 & 109 & 150 & 359 & 8\\
-    \hline    7 & 100 & 107 & 150 & 357 & 7\\
-    \hline    8 & 100 & 109 & 150 & 359 & 26\\
-    \hline    9 & 100 & 114 & 150 & 364 & 5\\
-    \hline    10 & 100 & 111 & 150 & 361 & 10\\
-    \hline    \textbf{Total} & 1000 & 1076 & 1500 & 3576 & 130\\
-    \hline
-\end{tabular}
-\end{table}
+\includegraphics[width=3.2in]{pca}
+\caption{Number of members of each gender for each dialect}
+\label{demographics1}
+\end{figure}
 
-\section{Conclusion and Future Works}
-
-Our experiment compares the performance of our method against other methods.
-There are four methods in this experiment: batch, incremental, ensemble, and ensemble-incremental.
-Base classifier in every methods is Naive Bayes classifier.
-We choose Naive Bayes because it is fast and simple, and also produce the second best performance beside SVM in Rahmawati experiment \cite{rahma}.
-We use the same metric used by Rahmawati to evaluate each method performance, which is sample average f-measure.
-The methods are evaluated using 10-fold cross validation and our test data.
-
-In batch experiment, the first chunk is learned and the result is a BR classifier.
-This is the first iteration.
-After that, the data from first chunk is appended with the second chunk to make a new classifier, discarding the old classifier.
-After the second iteration, we do the same process in third iteration with the third chunk.
-In every iteration we perform, we evaluate its performance.
-
-In other methods, the chunks are trained incrementally.
-In incremental method, we train the BR of Naive Bayes classifier incrementally chunk by chunk.
-Note that Naive Bayes classifier can be trained incrementally by only updating the distribution $P(y)$ and $P(x_i|y)$.
-The next two methods use our method.
-In the first one, ensemble method, we only perform our method as is.
-In ensemble-incremental method, we furtherly employ incremental learning ability of Naive Bayes to existing classifiers in the ensemble.
-
-We also perform chunk sorting in order to fit AWE weighting scheme analysis.
-Classifier weighting in AWE is estimated from its expected prediction error on the test examples, assuming class distribution of the most recent training data is closest to class distribution of test data \cite{wang}.
-To meet this assumption, we sort our chunks by evaluating three classifiers that are trained independently using each chunk.
-
-We masure processing time and memory usage of each method to see whether incremental and ensemble methods use less resource.
-Implementation of ensemble methods that is used for this experiment is the efficient one, which has one-to-many relationship between TF-IDF transformer and classifier.
-OOV condition is also analyzed by calculating the number of words that are covered and not covered by the classifiers, its effect on class prediction, and a sample of document that has OOV words.
-Experiment results are explained in next chapter.
-
-Natural language processing (NLP) tools we use for tokenization and stemming tasks is INA-NLP by Purwarianti \cite{ayu}.
-We use stop words list taken from Tala \cite{tala}.
-For machine learning task, we use Python programming language and Scikit-learn \cite{sklearn}.
-
-\section{Result}
-
-The result of 10-fold cross validation is shown in Table \ref{result_k}.
-Note that the result of first iteration in all methods are identical because they are actually the same classifier, trained with the same data.
-No re-learn procedure has happened in incremental, ensemble, and ensemble-incremental classifier.
-Incremental-trained classifier will be similar to batch-trained classifier.
-Also, ensemble and ensemble-incremental will consist of one member which is a classifier that similar to batch-trained one.
-
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Cross validation result}
-\label{result_k}
+\begin{figure}[!htb]
 \centering
-\begin{tabular}{|l|c|c|c|}
-\hline
- & Iteration 1 & Iteration 2 & Iteration 3\\
-\hlineBatch & 0.785 & 0.768 & 0.787\\
-\hline
-Incremental & 0.785 & 0.735 & 0.778\\
-\hline
-Ensemble & 0.785 & 0.775 & 0.768\\
-\hline
-Ensemble-incremental & 0.785 & 0.775 & 0.776\\
-\hline
-\end{tabular}
-\end{table}
+\includegraphics[width=3.2in]{hitrate}
+\caption{Number of members of each gender for each dialect}
+\label{demographics1}
+\end{figure}
 
-Ensemble and ensemble-incremental method has the same F1 score in first and second iteration.
-This happens because there are only two members in the ensemble, so the voting will be to choose one from two classifiers.
-This means, a classifier that has larger weight is the same one between ensemble and ensemble-incremental method.
+\section{Conclusion and further works}
 
-The result against testing data is shown in Table \ref{result_test}.
-Here, like in cross validation, all methods has the same performance is first iteration.
-Ensemble-incremental is always outperform ensemble-only method in validation and testing.
-This concludes that existing classifiers in ensemble are also need to be re-trained with new training data in order to make them adapt with the most up-to-date condition.
-
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Testing result}
-\label{result_test}
-\centering
-\begin{tabular}{|l|c|c|c|}
-\hline
- & Iteration 1 & Iteration 2 & Iteration 3\\
-\hlineBatch & 0.778 & 0.798 & 0.823\\
-\hline
-Incremental & 0.778 & 0.796 & 0.8\\
-\hline
-Ensemble & 0.778 & 0.71 & 0.756\\
-\hline
-Ensemble-incremental & 0.778 & 0.71 & 0.776\\
-\hline
-\end{tabular}
-\end{table}
-
-To see the effect of meeting AWE weighting scheme assumption, we use f-measure to estimate closeness of chunk class distribution to our test data.
-A chunk which has larger F1 score is assumed to indicate its class distribution is closer to test data.
-Classifier F1 score when trained with Chunk A is 0.778, 0.71 with Chunk B, and 0.728 with Chunk C.
-Therefore, we use Chunk B in first iteration, Chunk C in the second, and Chunk A in the last iteration.
-
-Classifiers performance using test data after the chunks has been sorted is shown in Table \ref{result_test_sorted}.
-We can see that both ensemble methods perform better than before sorted.
-Ensemble-incremental method even outperform batch method in the last iteration.
-This shows that the assumption of the most recent chunk as the closest to class distribution of test data affects performance.
-
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Sorted chunk testing result}
-\label{result_test_sorted}
-\centering
-\begin{tabular}{|l|c|c|c|}
-\hline
- & Iteration 1 & Iteration 2 & Iteration 3\\
-\hlineBatch & 0.71 & 0.76 & 0.823\\
-\hline
-Incremental & 0.71 & 0.745 & 0.811\\
-\hline
-Ensemble & 0.71 & 0.728 & 0.791\\
-\hline
-Ensemble-incremental & 0.71 & 0.728 & 0.834\\
-\hline
-\end{tabular}
-\end{table}
-
-Each methods computational time and memory usage is shown in Table \ref{profile}.
-We can see that even though both ensembles take more time, their processing time is proportional to how much documents is used in the training.
-This also applied in incremental method, since they only use current chunk and do not use any previous chunk.
-Note that the last chunk used in third iteration contains the least number of documents.
-Incremental, ensemble, and ensemble-incremental methods took less time than previous iteration.
-Ensemble methods trained much longer because there are more classifiers and more process, such as weighting and TF-IDF transforming.
-In contrast, batch method processing time is proportional to total number of documents its used, chunk size did not affect it.
-In memory usage we can also see batch method uses more memory in the last iteration than other methods.
-Incremental and ensemble methods memory usage of training data depends on chunk size.
-Ensemble methods require more memory than incremental method because they contain more classifiers.
-
-\begin{table}[!htb]
-\renewcommand{\arraystretch}{1.3}
-\caption{Training time and memory usage}
-\label{profile}
-\centering
-\begin{tabular}{|l|c|c|c|}
-\hline
- & Iteration 1 & Iteration 2 & Iteration 3\\
-\hline\textbf{Training Time} & & & \\
-\hlineBatch & 0.42 & 0.881 & 1.09\\
-\hline
-Incremental & 0.42 & 0.47 & 0.291\\
-\hline
-Ensemble & 0.702 & 1.523 & 1.241\\
-\hline
-Ensemble-incremental & 0.702 & 1.59 & 1.356\\
-\hline\textbf{Memory Usage} & & & \\
-\hlineBatch & 20762 & 41953 & 52132\\
-\hline
-Incremental & 20590 & 23224 & 14331\\
-\hline
-Ensemble & 20604 & 29432 & 24568\\
-\hline
-Ensemble-incremental & 20604 & 29683 & 25090\\
-\hline
-\end{tabular}
-\end{table}
-
-To investigate OOV occurence, we analyzed words contained in each chunk.
-The number of words that appear in chunk A and also appear in chunk B is 3882, and that makes the total of unique words of their union is 9454.
-It means, 1666 words are OOV words.
-That union and the chunk C has 5587 same words.
-It has 3867 OOV words from that union compared to words consisting in the chunk C.
-
-OOV occurrence can be seen in prediction of a sample document in our test data with title "Partai Buruh Dinilai Sangat Mungkin Terbentuk" [Labor Party is Considered Very Likely to Formed].
-The word "kecimpung" [involved in] appears in that document, but it is not covered by incremental method classifier.
-This OOV condition resulted in incorrect classification result.
-Ensemble method correctly classify the document to label "social and cultural", but incremental method does not.
-When we create a dummy document consisting only the word "kecimpung", we got the same result, ensemble method classifies it correctly but incremental method classifier does not.
-This is an example of OOV can affect prediction performance.
-
-\section{Conclusion and Further Works}
-
-An ensemble approach to incrementally learn out of vocabulary words has been implemented in this experiment for multilabel classification of Indonesian news article.
-Our approach is a combination of Accuracy-Weighted Ensemble (AWE) for ensemble classifier and Binary Relevance (BR) for multilabel classifier.
-We provided explanation of the usage of both methods in order to employ them as one classifier system.
-
-The results show that our ensemble methods could perform well when the last training data represent class distribution of test data the most.
-Our approach is incremental method, in the sense that it does not use any previous data, making its processing time and memory consumption does not proportionally increased by total number of all documents.
-OOV is also shown to have been handled using this approach.
-
-Our method will be improved by making its processing time shorter.
-Parallel implementation can be employed to address this problem.
-There are some BR and AWE procedures that can be performed in parallel, since classifiers contained in them process data independently.
-Feature selection can also be performed.
-There are evidence that shows feature selection increases classifier performance for the same task \cite{rahma}.
-Although this method still leaves some opportunity for improvements, we believe that this paper has covered the big picture of what our idea is.
 
 \begin{thebibliography}{1}
+
+\bibitem{laan}
+G.P.M.~Laan,
+    "The contributions of intonation, segmental durations, and spectral features to the perception of a spontaneous and a read speaking style,"
+    Speech Communication 22:43-65, 1997.
 
 \bibitem{dellwo}
 V.~Delwo, A.~Leemann, M.J.~Kolly,
@@ -540,6 +471,12 @@ G.~Liu, Y.~Lei, J.H.L.~Hansen,
     18th European Signal Processing Conference (EUISPCO-2010), 2010.
 
 \bibitem{furui1}
+S.~Furui, M.~Nakamura, T.~Ichiba, K.~Iwano,
+	"Why is the recognition of spontaneous speech so hard?",
+	8th Internation Conference on Text, Speech, and Dialog,
+	Karlovy Vary, 2005.
+
+\bibitem{furui2}
 S.~Furui,
     "Spontaneous Speech Recognition and Summarization",
 
@@ -551,7 +488,8 @@ M.~Benzeguiba, R.~DeMori, O.~Deroo, S.~Dupon, T.~Erbes, D.~Jouvet, L.~Fissore, P
 \bibitem{asami}
 T.~Asami, R.~Masamura, H.~Masataki, S.~Sakauchi,
     "Read and spontaneous speech classification based on variance of GMM supervectors",
-    
+	Interspeech 2014:2375-2379, 2014.
+
 \bibitem{nakamura2}
 M.~Nakamura, I.~Koji, S.~Furui,
     "Differences between acoustic characteristics of spontaneous and read speech and their effects on speech recognition performance",
@@ -590,10 +528,10 @@ H.~Wang, F.~Wei, P.~Yu, and J.~Han,
     "Mining concept-drifting data streams using ensemble classifiers,"
     In Proceedings of the ninth ACM SIGKDD international conference on Knowledge discovery and data mining,
     pp. 226-235, ACM, 2003.
-    
+
 \bibitem{street}
 W.~Street and Y.Kim,
-    "A streaming ensemble algorithm (SEA) for large-scale classification," 
+    "A streaming ensemble algorithm (SEA) for large-scale classification,"
     Proceedings of the seventh ACM SIGKDD international conference on Knowledge discovery and data mining,
     ACM, 2001.
 
@@ -639,12 +577,12 @@ A.~Santos, A.~Canuto, and A.~Neto,
 E.A.~Cherman, M.C.~Monard, and J.~Metz,
     "Multi-label problem transformation methods: a case study,"
     CLEI Electron. J., vol. 14, no. 1, p. 4, 2011.
-    
+
 \bibitem{tala}
 F.Z.~Tala,
     "A study of stemming effects on information retrieval in Bahasa Indonesia,"
     Institute for Logic, Language and Computation Universeit Van Amsterdam (2003).
-    
+
 \bibitem{sklearn}
 F.~Pedregosa et al.,
     "Scikit-learn: Machine learning in Python,"
@@ -765,3 +703,4 @@ F.~Pedregosa et al.,
 
 % that's all folks
 \end{document}
+

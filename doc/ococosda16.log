@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.6.20)  16 JUL 2016 14:51
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.6.20)  21 JUL 2016 12:44
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -240,21 +240,45 @@ Package: ltxcmds 2011/11/09 v1.22 LaTeX kernel commands for general use (HO)
 \Gin@req@height=\dimen135
 \Gin@req@width=\dimen136
 )
-(./ococosda16.aux)
+(/usr/share/texmf/tex/latex/tipa/tipa.sty
+Package: tipa 2002/08/08 TIPA version 1.1
+
+(/usr/share/texlive/texmf-dist/tex/latex/base/fontenc.sty
+Package: fontenc 2005/09/27 v1.99g Standard LaTeX package
+
+(/usr/share/texmf/tex/latex/tipa/t3enc.def
+File: t3enc.def 2001/12/31 T3 encoding
+LaTeX Font Info:    Try loading font information for OT1+phv on input line 357.
+
+
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1phv.fd
+File: ot1phv.fd 2001/06/04 scalable font definitions for OT1/phv.
+))
+(/usr/share/texlive/texmf-dist/tex/latex/base/ot1enc.def
+File: ot1enc.def 2005/09/27 v1.99g Standard LaTeX file
+LaTeX Font Info:    Redeclaring font encoding OT1 on input line 48.
+))) (./ococosda16.aux)
 \openout1 = `ococosda16.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 17.
-LaTeX Font Info:    ... okay on input line 17.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 18.
+LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    Checking defaults for T3/cmr/m/n on input line 18.
+LaTeX Font Info:    Try loading font information for T3+cmr on input line 18.
+
+(/usr/share/texmf/tex/latex/tipa/t3cmr.fd
+File: t3cmr.fd 2001/12/31 TIPA font definitions
+)
+LaTeX Font Info:    ... okay on input line 18.
 
 -- Lines per column: 56 (exact).
 (/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
@@ -318,34 +342,134 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 35.
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 36.
 
 
-LaTeX Warning: Citation `hoesen' on page 1 undefined on input line 56.
+LaTeX Warning: Citation `hoesen' on page 1 undefined on input line 58.
 
 
-LaTeX Warning: Citation `nakamura1' on page 1 undefined on input line 63.
+LaTeX Warning: Citation `nakamura1' on page 1 undefined on input line 66.
 
 
-LaTeX Warning: Citation `nakamura2' on page 1 undefined on input line 63.
+LaTeX Warning: Citation `nakamura2' on page 1 undefined on input line 66.
 
 
-LaTeX Warning: Citation `spanish' on page 1 undefined on input line 65.
+LaTeX Warning: Citation `spanish' on page 1 undefined on input line 68.
 
 
-Underfull \hbox (badness 1490) in paragraph at lines 87--91
-[]\OT1/ptm/m/n/10 Another en-sem-ble method for in-cre-men-tal learn-ing is
- []
+LaTeX Warning: Citation `dwello' on page 1 undefined on input line 68.
+
+
+LaTeX Warning: Citation `furui1' on page 1 undefined on input line 86.
+
+
+LaTeX Warning: Citation `wang' on page 1 undefined on input line 94.
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
 
-] [2]
-Underfull \hbox (badness 1635) in paragraph at lines 332--338
-\OT1/ptm/m/n/10 against other meth-ods. There are four meth-ods in this
+]
+
+LaTeX Warning: Citation `wang' on page 2 undefined on input line 99.
+
+
+LaTeX Warning: Citation `street' on page 2 undefined on input line 112.
+
+
+Underfull \hbox (badness 1490) in paragraph at lines 112--116
+[]\OT1/ptm/m/n/10 Another en-sem-ble method for in-cre-men-tal learn-ing is
  []
 
-[3] [4] [5]
+
+LaTeX Warning: Citation `street' on page 2 undefined on input line 118.
+
+
+LaTeX Warning: Citation `zang' on page 2 undefined on input line 120.
+
+
+LaTeX Warning: Citation `tsoumakas' on page 2 undefined on input line 122.
+
+
+LaTeX Warning: Citation `prajapati' on page 2 undefined on input line 126.
+
+
+LaTeX Warning: Citation `demb' on page 2 undefined on input line 128.
+
+
+LaTeX Warning: Citation `prajapati' on page 2 undefined on input line 128.
+
+
+LaTeX Warning: Citation `dharmadhikari' on page 2 undefined on input line 130.
+
+
+LaTeX Warning: Citation `zhang' on page 2 undefined on input line 132.
+
+
+LaTeX Warning: Reference `demographics1' on page 2 undefined on input line 147.
+
+
+<demographics1_bw.png, id=10, 414.1071pt x 433.62pt>
+File: demographics1_bw.png Graphic file (type png)
+
+<use demographics1_bw.png>
+Package pdftex.def Info: demographics1_bw.png used on input line 154.
+(pdftex.def)             Requested size: 216.81pt x 227.03195pt.
+ [2]
+
+LaTeX Warning: Reference `phones' on page 3 undefined on input line 184.
+
+LaTeX Font Info:    Try loading font information for T3+ptm on input line 187.
+(/usr/share/texmf/tex/latex/tipa/t3ptm.fd
+File: t3ptm.fd 2001/12/31 TIPA font definitions
+)
+
+LaTeX Warning: Reference `features' on page 3 undefined on input line 221.
+
+
+LaTeX Warning: Reference `freq_dur_diff' on page 3 undefined on input line 272.
+
+
+[3 <./demographics1_bw.png>]
+
+LaTeX Warning: Reference `mfc_frm' on page 4 undefined on input line 321.
+
+
+LaTeX Warning: Reference `group_dist' on page 4 undefined on input line 358.
+
+[4]
+
+LaTeX Warning: Reference `phon_pca' on page 5 undefined on input line 391.
+
+<perphon_dist1.png, id=32, 469.755pt x 362.0727pt>
+File: perphon_dist1.png Graphic file (type png)
+ <use perphon_dist1.png>
+Package pdftex.def Info: perphon_dist1.png used on input line 397.
+(pdftex.def)             Requested size: 234.87749pt x 181.0359pt.
+
+
+LaTeX Warning: Command \! invalid in math mode on input line 420.
+
+
+LaTeX Warning: Command \! invalid in math mode on input line 420.
+
+<nseg_per_utt_bw.png, id=33, 414.1071pt x 433.62pt>
+File: nseg_per_utt_bw.png Graphic file (type png)
+ <use nseg_per_utt_bw.png>
+Package pdftex.def Info: nseg_per_utt_bw.png used on input line 426.
+(pdftex.def)             Requested size: 231.26378pt x 242.1639pt.
+
+<pca.png, id=34, 456.7464pt x 433.62pt>
+File: pca.png Graphic file (type png)
+ <use pca.png>
+Package pdftex.def Info: pca.png used on input line 438.
+(pdftex.def)             Requested size: 231.26378pt x 219.55531pt.
+
+<hitrate.png, id=35, 467.5869pt x 433.62pt>
+File: hitrate.png Graphic file (type png)
+ <use hitrate.png>
+Package pdftex.def Info: hitrate.png used on input line 445.
+(pdftex.def)             Requested size: 231.26378pt x 214.46722pt.
+ [5 <./perphon_dist1.png>]
 Missing character: There is no â in font ptmr7t!
 Missing character: There is no € in font ptmr7t!
 Missing character: There is no “ in font ptmr7t!
@@ -375,9 +499,7 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the appropriate paper size.
 
-[6
-
-] (./ococosda16.aux)
+[6 <./nseg_per_utt_bw.png> <./pca.png> <./hitrate.png>] (./ococosda16.aux)
 
 LaTeX Warning: There were undefined references.
 
@@ -386,29 +508,30 @@ LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 3599 strings out of 494953
- 54152 string characters out of 6180977
- 133612 words of memory out of 5000000
- 6846 multiletter control sequences out of 15000+600000
- 41773 words of font info for 83 fonts, out of 8000000 for 9000
+ 4705 strings out of 494953
+ 66875 string characters out of 6180977
+ 143530 words of memory out of 5000000
+ 7922 multiletter control sequences out of 15000+600000
+ 43367 words of font info for 86 fonts, out of 8000000 for 9000
  17 hyphenation exceptions out of 8191
- 37i,13n,27p,365b,320s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 37i,13n,27p,333b,327s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist
 /fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
 ublic/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
-sfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
-/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cms
-y8.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/sh
-are/texlive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/te
-xmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/urw/times/utmri8a.pfb>
-Output written on ococosda16.pdf (6 pages, 151376 bytes).
+sfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/c
+m/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/ur
+w/times/utmri8a.pfb></usr/share/texmf/fonts/type1/fkr/tipa/xipa10.pfb>
+Output written on ococosda16.pdf (6 pages, 261945 bytes).
 PDF statistics:
- 72 PDF objects out of 1000 (max. 8388607)
- 51 compressed objects within 1 object stream
+ 91 PDF objects out of 1000 (max. 8388607)
+ 58 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 1 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 26 words of extra memory for PDF output out of 10000 (max. 10000000)
 

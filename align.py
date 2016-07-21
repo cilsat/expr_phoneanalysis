@@ -131,6 +131,40 @@ def calcFormantsParallel(args):
             align.append(np.mean(data[:,s:e], axis=-1))
         return np.array(align)
 
+    def procSponRead(dfspk, phones):
+        spkr = dfspk.index[0]
+        attr = spkr[3:6]
+        spkr = spkr[0] + spkr[6:9]
+        # calculate per phone per spontan/read stats
+        dfspon = dfspk.loc[dfspk.index.str.get(-4) == 'Z']
+        dfread = dfspk.loc[set(dfspk.index) - set(dfspon.index)]
+        phonfeats = []
+        phones = list(set(dfspon.phon) & set(dfread.phon) & set(phones))
+        for p in phones:
+            # gather per phone data for spon/read: leave out phone name and time
+            dfsponp = dfspon.ix[dfspon.phon == p, 'dur':]
+            dfreadp = dfread.ix[dfread.phon == p, 'dur':]
+            # calculate phone frequency of occurence for spon/read
+            snum = dfsponp.index.size
+            rnum = dfreadp.index.size
+            sfreq = float(dfsponp.index.size)/dfspon.index.size
+            rfreq = float(dfreadp.index.size)/dfread.index.size
+            #freq = 10*np.log10(sfreq/rfreq)
+            # calculate per phone means for spon/read, and stack
+            smean = np.mean(dfsponp.values, axis=0).tolist()
+            rmean = np.mean(dfreadp.values, axis=0).tolist()
+
+            phonfeats.append([spkr, attr[0], attr[1], attr[2],
+                snum, rnum, sfreq, rfreq] + smean + rmean)
+
+        try:
+            phonfeats = pd.DataFrame(phonfeats, index=phones)
+        except:
+            print('no phone feats! ' + spkr)
+            return
+        # return processed features
+        return phonfeats
+
     # get wav files in specified directory
     wavsin = []
     argout = []
@@ -202,57 +236,6 @@ def calcFormants(wavpath, outfile, alifile):
     pool.join()
 
     return formants
-
-    np.savez_compressed(fileout.replace('.npz',''), **wavfeats)
-
-    feats = np.array(feats)
-    numfeats = feats.shape[1]
-    # delta wave features: average distance of a phone from the succeeding
-    # phone
-    delfeats = np.sum(np.square(np.diff(feats[:, :-1],axis=0)),axis=-1)**0.5
-    delfeats = np.array(delfeats.tolist() + [0.0]).reshape((delfeats.shape[0]+1, 1))
-    feats = np.concatenate((feats, delfeats), axis=1)
-    newcols = [str(n) for n in range(numfeats+1)]
-    for n in range(len(newcols)):
-        dfspk[newcols[n]] = feats[:,n]
-
-    # calculate per phone per spontan/read stats
-    dfspon = dfspk.loc[[f for f in files if f.find('Z') > 0]]
-    dfread = dfspk.loc[[f for f in files if f.find('Z') < 0]]
-    dfsponsz = dfspon.index.size
-    dfreadsz = dfread.index.size
-    phonfeats = []
-    phones = [p for p in phones if p in dfspon.phon.unique() and p in dfread.phon.unique()]
-    for p in phones:
-        # gather per phone data for spon/read: leave out phone name and time
-        dfsponp = dfspon.ix[dfspon.phon == p, 2:]
-        dfreadp = dfread.ix[dfread.phon == p, 2:]
-        # calculate phone frequency of occurence for spon/read
-        ns = float(dfsponp.index.size)/dfsponsz
-        nr = float(dfreadp.index.size)/dfreadsz
-        # calculate per phone means for spon/read, and stack
-        phonfeat = np.vstack((dfsponp.mean().get_values(), dfreadp.mean().get_values()))
-
-        # finally, calculate differences between spon/read features
-        # from left to right: duration, wave features, energy, delta features,
-        # delta energy
-        deldur = phonfeat[0,0]-phonfeat[1,0]
-        # for wave features (formant/mfcc), calculate euclidian distance
-        # between spon and read means
-        delf = np.sum(np.square(np.diff(phonfeat[:, 1:numfeats],axis=0)))**0.5
-        deldelf = phonfeat[0,-1]-phonfeat[1,-1]
-        # for energy, subtract for mfcc (because it's log), calculate decibel
-        # if formant
-        if features == 'mfcc':
-            deleng = phonfeat[0,numfeats]-phonfeat[1,numfeats]
-        elif features == 'formant':
-            deleng = 20.*np.log10(phonfeat[0,numfeats]/phonfeat[1,numfeats])
-        # append results
-        phonfeats.append([ns, nr, deldur, delf, deleng, deldelf ])
-
-    # return processed features
-    #return pd.DataFrame(phonfeats, index=phones, columns=['ns', 'nr', 'dur', 'fdist', 'energy', 'delfdist'])
-    return np.vstack(phonfeats)
 
 def procAliMfc(args):
     spkr, ali, mfc, phones, pm, perphone = args
@@ -376,8 +359,9 @@ def calcFeats(alifile, mfcfile, phonfile, perphone=True):
     pool.terminate()
     pool.join()
 
+    # join and normalize
     df = pd.concat(feats)
-    cols = dict(zip(range(len(df.columns)), ['spkr', 'k', 's', 'u', 'snum', 'rnum', 'sfreq', 'rfreq', 'sdur'] + ['s'+str(n) for n in range(39)] + ['sdist', 'rdur'] + ['r'+str(n) for n in range(39)] + ['rdist']))
+    cols = dict(zip(range(len(df.columns)), ['spkr', 'k', 's', 'u', 'snum', 'rnum', 'sfreq', 'rfreq', 'sdur'] + ['s'+str(n) for n in range(39)] + ['rdur'] + ['r'+str(n) for n in range(39)]))
     if perphone:
         try:
             df.rename(columns=cols, inplace=True)
@@ -418,20 +402,26 @@ def classify(dfin, clf='svm', ret=False):
         dfs = df.iloc[s]
         clf.fit(dfr.iloc[:, :-1].values, dfr.lbl.values)
         pre = clf.predict(dfs.iloc[:, :-1].values)
-        res = pre != dfs.lbl.values
-        misses.append(dfs.iloc[(np.argwhere(res)).flatten()])
-        scores.append(np.mean(res))
+        res = pre != dfs.lbl
+        mis = res.values
+        
+        misses.append(dfs.iloc[(np.argwhere(mis)).flatten()])
+        scores.append(res)
         #scores.append(f1_score(dfs.lbl.values, clf.predict(dfs.iloc[:, :-1].values) == dfs.lbl.values))
 
     misses = pd.concat(misses)
+    scores = pd.concat(scores)
     misscount = (100*(misses.groupby([misses.lbl]).count().iloc[:,0].astype(float)/df.groupby([df.lbl]).count().iloc[:,0]).values).tolist()
     print(misscount+[100-100*np.mean(scores), np.var(scores)])
+    #return misscount+[100-100*np.mean(scores), np.var(scores)]
     if ret:
-        return misses
+        return misses, scores
 
 def getAcFeats(df):
+    df.index = df.spkr
+    df.drop(['spkr'], axis=1, inplace=True)
     def normalize(x):
-        return x/x.max()
+        return (x - x.mean())/x.std()
 
     dfg = df.groupby(df.index)
     lbl = dfg.lbl.mean()
@@ -468,6 +458,120 @@ def predictSponRead(attrs):
     pool.close()
     pool.terminate()
     pool.join()
+
+def mapPhones(df):
+    pm = {}
+    for p in open('phones.txt').read().split('\n')[:-1]:
+        i, n = p.split()
+        pm[int(n)] = i
+    df.phon = df.phon.map(pm)
+
+def groupDiff(dfin, by):
+    from scipy.spatial.distance import cdist
+    df = dfin.copy()
+    # get used phones
+    mapPhones(df)
+    idx = pd.read_pickle('allpp.pk').index
+    df = df.loc[df.phon.isin(idx)]
+    v = df.iloc[:,2:-1]
+    df.iloc[:,2:-1] = (v-v.mean())/v.std()
+
+    # get center
+    c = df.groupby([df.phon]).mean().drop(['lbl'], axis=1)
+    print(c.head())
+    # group by
+    pp = df.groupby([df.spkr.str.get(by), df.phon]).mean()
+    print(pp.head())
+
+    res = []
+    groups = pp.index.get_level_values(0).unique()
+    for n in groups:
+        if agg:
+            d = pp.xs(n, level=0)
+            # per phone distances to center
+            #d -= c
+            # get per group euclidean distance between spon/read phone pairs
+            d = d.xs(True, level=0) - d.xs(False, level=0)
+            d = (d**2).sum(axis=1)**0.5
+            #d = d.xs(True, level=0)/d.xs(False, level=0)
+        else:
+            d = pp.xs(n, level=0)
+            d = d.xs(True, level=0) - d.xs(False, level=0)
+            d.columns = pd.MultiIndex.from_tuples(zip([n]*len(d.columns), d.columns))
+        res.append(d)
+
+    if agg:
+        res = pd.DataFrame(res, index=groups).T
+    else:
+        res = pd.concat(res, axis=1)
+    return res
+def spectralReduction(dfin, by, agg=True):
+    from scipy.spatial.distance import cdist
+    df = dfin.copy()
+    # get used phones
+    mapPhones(df)
+    idx = pd.read_pickle('allpp.pk').index
+    df = df.loc[df.phon.isin(idx)]
+    if agg:
+        v = df.iloc[:,2:-1]
+        df.iloc[:,2:-1] = (v-v.mean())/v.std()
+
+    # get center
+    c = df.groupby([df.phon]).mean().drop(['lbl'], axis=1)
+    print(c.head())
+    # group by
+    pp = df.groupby([df.spkr.str.get(by), df.lbl, df.phon]).mean()
+    print(pp.head())
+
+    res = []
+    groups = pp.index.get_level_values(0).unique()
+    for n in groups:
+        if agg:
+            d = pp.xs(n, level=0)
+            # per phone distances to center
+            #d -= c
+            # get per group euclidean distance between spon/read phone pairs
+            d = d.xs(True, level=0) - d.xs(False, level=0)
+            d = (d**2).sum(axis=1)**0.5
+            #d = d.xs(True, level=0)/d.xs(False, level=0)
+        else:
+            d = pp.xs(n, level=0)
+            d = d.xs(True, level=0) - d.xs(False, level=0)
+            d.columns = pd.MultiIndex.from_tuples(zip([n]*len(d.columns), d.columns))
+        res.append(d)
+
+    if agg:
+        res = pd.DataFrame(res, index=groups).T
+    else:
+        res = pd.concat(res, axis=1)
+    return res
+
+def distanceGraph(df):
+    from sklearn.decomposition import PCA
+    import matplotlib.pyplot as plt
+    pm = {}
+    for p in open('phones.txt').read().split('\n')[:-1]:
+        i, n = p.split()
+        pm[int(n)] = i
+
+    # group by phone and label and then normalize
+    dfp = df.groupby([df.phon.astype(int).map(pm), df.lbl]).mean().drop(['phon'], axis=1).apply(lambda x:x/x.max())
+
+    # reduce to 2 dimension for profitable plotting
+    pca = PCA(n_components=2)
+    dfl = pd.DataFrame(pca.fit_transform(dfp), index=dfp.index)
+    # remove phonemes missing a label (only has spontaneous or only has read
+    # data)
+    dfl = dfl.loc[list(set(dfl.xs(True, level=1).index) & set(dfl.xs(False, level=1).index))]
+    # calculate distances
+    dist = dfl.groupby(level=0).transform(lambda x:x.diff()).dropna()
+    dist['d'] = np.sqrt(np.sum((dfl.values)**2, axis=1))
+    s = pca.transform(dfs.values)
+    r = pca.transform(dfr.values)
+    x = np.hstack((s[:,0], r[:,0]))
+    y = np.hstack((s[:,1], r[:,1]))
+    [plt.plot(x[n], y[n]) for n in range(x.shape[0])]
+    return x, y
 
 def main(args):
     confdir = args[1]
