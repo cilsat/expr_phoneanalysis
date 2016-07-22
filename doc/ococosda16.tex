@@ -5,6 +5,7 @@
 \usepackage{algpseudocode}
 \usepackage{graphicx}
 \usepackage{tipa}
+\usepackage{flushend}
 
 \makeatletter
 \def\BState{\State\hskip-\ALG@thistlm}
@@ -17,19 +18,19 @@
 
 \begin{document}
 
-\title{Analyzing Differences in Indonesian Spontaneous and Dictated Speech}
+\title{Analyzing and Classifying Indonesian Spontaneous and Dictated Speech}
 
 \author {
     \IEEEauthorblockN {
         Cil Hardianto Satriawan\IEEEauthorrefmark{1},
-        Dessi Puji Lestarti\IEEEauthorrefmark{2}
+        Dessi Puji Lestari\IEEEauthorrefmark{2}
     }
     \IEEEauthorblockA {
         School of Electrical Engineering and Informatics\\
         Bandung Institute of Technology\\
         Bandung, Indonesia 40132\\
         \IEEEauthorrefmark{1}23515053@std.stei.itb.ac.id,
-        \IEEEauthorrefmark{2}dessi@informatika.org
+        \IEEEauthorrefmark{2}dessipuji@stei.itb.ac.id
     }
 }
 
@@ -42,34 +43,31 @@ Many approaches have been forwarded to improve performance, including model adap
 In an effort to improve Indonesian language spontaneous recognition performance, we attempt to pinpoint the acoustic differences between spontaneous and dictated Indonesian speech.
 At the phoneme level, we find that there are differences in the distribution and pronunciation of several key phonemes associated with filled pauses.
 Across speakers, there is a consistent reduction in segment duration and segment energy, with a less marked spectral reduction.
-Using these differences as a starting point, we train an SVM that classifies spontaneous and read Indonenesian utterances at 75\% and 87\% accuracy, respectively.
-We show that it is possible to obtain this classification by considering segment acoustic features and differences between consecutive segments.
+Using these differences as a starting point, we train a number of classifiers that can accurately identify spontaneous and read Indonenesian utterances at F1 scores consistently above 90\%.
+We show that classification is achievable by considering segment features and feature differences between consecutive segments, or "delta" and "delta-delta segments".
 \end{abstract}
 
 \begin{IEEEkeywords}
-speech recognition,
+Speech recognition, spontaneous speech, Indonesian language
 \end{IEEEkeywords}
 
 \IEEEpeerreviewmaketitle
 
 \section{Introduction}
-The ability to accurately recognize spontaneous speech is a significant hurdle to the practical use of a speech recognition system, with many systems performing poorly.
-This is seemingly in contrast to the recognition performance achievable on most state-of-the-art statistical-based systems on dictated speech tasks and limited domain spoken interactions.
-In \cite{hoesen}, an Indonesian language speech recognition system was built that is capable of achieving upwards of 80\% accuracy for dictated speech but only around 65\% for spontaneous speech.
-Other examples can be found in \cite{}, \cite{}, and \cite{}.
+The accurate recognition of spontaneous speech is one of the large ongoing challenges towards achieving practical speech recognition, with many systems still performing poorly.
+This is seemingly in contrast to the recognition performance achievable on most state-of-the-art statistical-based systems on dictated speech tasks and limited domain spoken interactions \cite{furui2}.
 
-This poor performance may be partly attributed to the fact that a large proportion of the data used to train models is derived from dictated instead of spontaneous speech.
-Recording and labelling large amounts of new spontaneous speech is a difficult and costly process, whereas existing Indonesian language resources are scarce or non-existant.
+This poor performance may be attributed in part to the fact that a large proportion of the data used to train models is derived from dictated instead of spontaneous speech.
+Recording and labelling large amounts of new spontaneous speech is a difficult and costly process, whereas existing Indonesian language resources are scarce or non-existant \cite{hoesen}.
 In addition, although spontaneous recognition is an important component of practical speech recognition, research has only relatively recently shifted in this direction.
 
 Spontaneous and dictated speech also differ in various ways.
-It has been proposed that spontaneous speech is less ordered both linguistically and acoustically \cite{nakamura1}, and differs spectraclly from dictated speech \cite{nakamura2}.
+It has been proposed that spontaneous speech is less ordered both linguistically and acoustically \cite{furui2}, and differs spectraclly from dictated speech \cite{nakamura}.
 Spontaneous speech contains filled pauses, repairs, hesitations, repetitions, and disfluencies, which are largely absent in dictated speech.
-The exact differences vary by language, with some languages exhibiting a strong tonal difference between spontaneous and dictated speech \cite{spanish}\cite{dwello}.
-Speech disfluencies also differ between language and speaker; each language, dialect, or speaker may have their own set of specific disfluencies and patterns.
+The exact differences vary by language, with some languages exhibiting a strong tonal difference between spontaneous and dictated speech \cite{dellwo}.
 
 A number of methods have been developed to improve spontaneous speech recognition performance.
-In the model adaptation approach, a large amount of dictation data is adapted to a small amount of spontaneous data while training the acoustic model, using a method such as Maximum A Priori (MAP).
+In the model adaptation approach, a large amount of dictation data is adapted to a small amount of spontaneous data while training the acoustic model, using a method such as Maximum A Priori (MAP) adaptation.
 In the second approach, acoustic and language models for spontaneous and dictated speech are trained separately, with a method to switch or weigh models on the fly.
 Model switching relies on a reliable way to differentiate between spontaneous and dictated speech that is independent of the specific acoustic models.
 
@@ -77,63 +75,37 @@ In either case, it is instructive to understand how acoustic differences between
 With a better understanding of these differences we can train better specialized models for spontaneous or mixed speech, for example utilizing the model switching approach.
 The goal is to achieve a reasonably performant "front-end" classifier that can pass data to a number of back-end models specialized for the task at hand.
 
-In the following sections we describe the relevant literaturea and the speech corpus used for analysis.
+In the following section we describe the relevant literature and the speech corpus used for analysis.
 We then discuss at length the various phoneme-level differences between spontaneous and read speech in the Indonesian language.
-Finally we attempt to engineer segment-level acoustic features and utilize this feature set to classify segmented utterances.
+Finally we attempt to engineer segment-level acoustic features and utilize the feature set to classify segmented utterances.
 
 \section{Related Works}
 
+In classifying spontaneous speech, a number of approaches may be taken.
+Many studies have focused on linguistic features such as grammar, word choice, hesitations, speech rate, pause types, pause structures, intonation, and articulation \cite{barik}\cite{blaauw}\cite{umeda}.
+While such features are able to describe the semantic and syntactic characteristics of spontaneous speech, they are limited by the difficulty of labeling the training data.
+Acoustic characteristics of spontaneous speech, on other hand, are easier to extract, but more difficult to use for classification purposes \cite{nakamura}.
 Furui has shown that there is a substantial difference in the spectral properties of vowels between read and spontaneous speech \cite{furui1}.
-In this approach, differences between phoneme vectors of varying styles and their centers are compared using the following formulation:
+By taking the differences between phoneme vectors of varying styles and their respective centers/averages, the spectral reduction of various phonemes between various speaking styles can be meaningfully distinguished.
+A very promising new approach is in extracting the GMM supervectors between multiple utterances \cite{asami}, though this is limited by the latency of the classification results.
 
-This can be interpreted
-In this approach, MFCC features are taken
+The exact definition of what constitutes "spontaneous" speech may often make or break a particular method.
+For spontaneous speech that is different from read speech only in terms of preparedness of speech, but controlling for factors such as intonation, pitch, and speaking rate, it is very difficult even for humans to distinguish between the two \cite{laan}.
+An oft-proposed approach to characterizing spontaneous speech is the use of prosodic features that describe the intonation and rhythm of speech \cite{silverman}.
+An indirect approach, through the attempt to classify multiple classes, may shed more light into the issues involved \cite{liu}.
 
-The literature suggests that many spontaneous speech 
+Specifically with regards to Indonesian, recent advances have been made in building large scale systems \cite{lestari}\cite{sakti}.
+However problems still persist with regards to spontaneous speech.
+Hoesen et al., building on previous Indonesian language model adaptation work\cite{lestari2}, have developed a reasonably performant Indonesian language speech recognition system, capable of achieving upwards of 80\% accuracy for dictated speech but only around 65\% for spontaneous speech, even with model adaptation.
+Methods using general machine learning algorithms have been proposed for handling filled pauses in Indonesian \cite{sani}.
 
-Wang, et al. \cite{wang} proposed an incremental ensemble method called Accuracy-Weighted Ensembles (AWE).
-It is a weighted majority ensemble algorithm with the weight is calculated based on error reduction analysis.
-Each classifier $c_i$ is given a weight reversely proportional to the expected error MSE$_i$.
-The weight is then calculated as $w_i = \text{MSE}_i - \text{MSE}_r$ where $\text{MSE}_r$ is the mean square error of a random classifier.
-
-AWE proposed by Wang, et al. \cite{wang} is used as ensemble method for our approach.
-Its weighting method is based on expected error of classifier.
-We compute the mean square error of classifier $c_i$ by using formula
-\[\text{MSE}_i = \frac{1}{|S|} \sum_{(x,y) \in S} (1 - f_i^y(x))^2\]
-where $S$ is the latest chunk of training data, $(x,y)$ is a record in $S$ with $y$ is the true label, and $f_i^y(x)$ is the probability given by $c_i$ that $x$ is an instance of label $y$.
-And then, the mean square error of each label according to its distribution is
-\[\text{MSE}_r = \sum_{c} p(c)(1-p(c))^2\]
-Finally, the weight $w_i$ of a classifier $c_i$ is computed with formula
-\[w_i = \text{MSE}_r - \text{MSE}_i\]
-$\text{MSE}_r$ does not contain useful information about the data.
-It is only used as a threshold to discard classifiers from ensemble.
-We eliminate classifiers that have negative weight, which means their error is equal or larger than $\text{MSE}_r$.
-
-Another ensemble method for incremental learning is Streaming Ensemble Algorithm (SEA) \cite{street}.
-It combines decision tree models using majority-voting.
-It does not weight each classifier and vote accordingly.
-It is based on investigation that weighting had little or no effect on ensemble accuracy.
-
-Both ensemble methods are applied on concept drifting environment.
-We concluded that concept drift has the same meaning as what we called OOV condition in the sense of the underlying concept, which we considered as terms or words, does not reflected in the predictive features \cite{street}.
-The concept can also change without warning.
-Zang, et al. \cite{zang} shows that AWE performs better than SEA.
-
-For multilabel classification task, there are two main approach: problem transformation and algorithm adaptation \cite{tsoumakas}.
-In problem transormation approach, some commonly methods are Binary Relevance (BR), Label Powerset (LP), and Calibrated Label Ranking (CLR).
-Some examples of algoritm adaptation methods are Adaboost.MH, Adaboost.MR, and MLkNN.
-
-In BR, multilabel dataset is transformed into $n$ single-label dataset where $n$ is the number of label \cite{prajapati}.
-CLR applies the comparisons among the pair of labels exist in dataset, then builds both pair and single-label models.
-LP method changes multilabel classification into a multiclass classification \cite{demb} by adding some new single-labels for each unique set of labels exists in multilabel dataset \cite{prajapati}.
-
-The first two methods of algorithm adaptation are the extension of AdaBoost algorithm that search for accurate classification rules by combining multiple weak hypothesis \cite{dharmadhikari}.
-MLkNN is the adaptation of kNN algorithm which uses kNN separately for each label then determines the k closest instances to the tested one.
-Adaboost.MH and Adaboost.MR perform well in terms of one error, coverage, ranking loss and average precision, while MLkNN performs better in terms of hamming loss \cite{zhang}.
+Detecting spontaneous and read utterances based on unlabelled segments relies on achieving reliable speech segmentation.
+Many methods have been described in the literature to achieve this, building on the standard Hidden Markov Model (HMM) approach or using newer unsupervised approaches \cite{scharenborg}.
+For this work, the Kaldi speech toolkit \cite{povey} is used primarily for speech segment extraction and obtaining the per frame MFCC features of recordings.
 
 \section{Speech Corpus}
 
-The Perisalah Corpus is a collection of spontaneous and read speech recorded for the development of the Perisalah Speech Recognition System \cite{} in collaboration with PT. Inti, an Indonesian public telecommunications company.
+The Perisalah Corpus is a collection of spontaneous and read speech recorded for the development of the Perisalah Speech Recognition System in collaboration with PT. Inti, an Indonesian public telecommunications company.
 The corpus samples a variety of different age groups and local dialects.
 The meeting transcription system is being deployed at various government institutions at the national and regional levels.
 The read/dictation part of the corpus was build to be lexically balanced with respect to written Indonesian.
@@ -150,7 +122,7 @@ Two age groups were defined; ages 40 years and under, and ages above 40 years, w
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=3.0in]{demographics1_bw}
+\includegraphics[width=3.3in]{demograph}
 \caption{Number of members of each gender for each dialect}
 \label{demographics1}
 \end{figure}
@@ -167,22 +139,17 @@ Hence, using the duration of utterances as a metric should be done with caution.
 \subsection{Acoustic feature extraction}
 
 Speech audio data is represented as audio samples taken at a particular rate.
-A constant number of (overlapping) audio samples are processed in a frame to obtain low level spectral, cepstral, and energy features.
+A constant number of possibly overlapping audio samples are processed in a frame to obtain low level spectral, cepstral, and energy features.
 A segment, comprised of a varying number of such frames, represents a single phoneme.
 For the purposes of our acoustic analysis, linguistic units other than the phoneme are ignored and we instead consider utterances as sequences of segments.
 In addition to frame and segment-level acoustic information a number of high level features are obtained at the utterance and speaker levels, namely the specific speaker of an utterance, their gender, dialect, and age.
 
-Using segments as the smallest unit of analysis is attractive and practical for many reasons.
-Analysis of individual frames is impractical on very large datasets due to the computational load.
-In addition, as we shall see, utilizing sequences of segments leads to usable spontaneous/read classification results at a relatively low latency and computational/memory overhead.
-On the other hand, the identification of segment boundaries is usually accomplished by first training a HMM.
-
-In order to obtain training data segments, forced alignment was conducted on the corpus using a pretrained HMM built using the Kaldi toolkit.
-The segment duration and location in the utterance in seconds and phone was obtained for each utterance in the corpus.
-171 phones were defined including fillers, silence, and other non-speech phones.
+Segments are force aligned on a prebuilt HMM trained using the Kaldi toolkit.
+The segment duration, location and phone are obtained for each utterance in the corpus.
+171 phones are defined in the corpus, which includes voiced and spoken phones, fillers, silence, and other non-speech phones.
 The 64 most common phones calculated by frequency of appearance in the corpus are displayed in Table \ref{phones}.
 These phones account for 98.15\% of the segment occurences in the corpus.
-Voiced phones are further separated as belonging to the beginning, inside, or end of a word, indicated by a 'B', 'I', and 'E' suffix, resepectively.
+Spoken phones are further separated as belonging to the beginning, inside, or end of a word, indicated by a 'B', 'I', and 'E' suffix, resepectively.
 The '@' symbol represents the phonetic '\textipa{@}'.
 
 \begin{table}[!htb]
@@ -211,12 +178,11 @@ The '@' symbol represents the phonetic '\textipa{@}'.
 \end{tabular}
 \end{table}
 
-Utilizing alignment information regarding duration and location of segments, frame features were generated or inserted, frames aligned to the correct semgent, and then averaged for each segment.
-The segment features obtained this way are segment-averaged formants (generated) and MFCCs (inserted).
-The first four formants of each frame were calculated by solving the Linear Predictive Coefficients (LPC) of each frame in the frame alignment subroutine.
-The first 13 MFCCs were obtained during the pretraining of the segmentation HMM through the Kaldi toolkit, using the training defaults including Cepstral Mean Subtraction (CMS).
+For each frame, the formants and MFCCs are extracted.
+The first four formants of each frame are calculated by solving its Linear Predictive Coefficients (LPC) an alignment subroutine.
+The first 13 MFCCs are obtained during the pretraining of the segmentation HMM through the Kaldi toolkit, using the training defaults including Cepstral Mean Subtraction (CMS).
 The delta and delta-delta features were calculated manually during frame alignment.
-Apart from averaged frames, features at the segment level include segmental duration and location, and segment label in terms of phoneme. 
+Apart from averaged frames, features at the segment level include segmental duration and location, and segment label in terms of phoneme.
 The complete list of features is shown in Table \ref{features}.
 
 \begin{table}[!htb]
@@ -316,7 +282,6 @@ Finally, the bottom section of the log energy column is populated mostly by plos
 A possible explanation for this is speakers exerting less conscious control over their speech during spontaneous scenarios.
 The top two phones, 'e\_B' and 'a\_B', are in Indonesian often followed by a stressed syllable, which may be less exaggerated in dictation scenarios.
 
-
 The remaining acoustic features are analyzed to obtain their phone relationships in a similar manner, as seen in Table \ref{mfc_frm}.
 In analyzing both MFCCs and formants, the log energy components are discarded and the standardized Euclidian distances between spontaneous-dictated phone pairs are aggregated over all segments.
 The results from formant analysis show only small differences between phones and low variance ($var = 0.201$), hence averaged formant features are not optimal indicators of phone differences between styles.
@@ -346,7 +311,6 @@ On the other hand, the results of cepstral analysis show large differences but a
 \end{tabular}
 \end{table}
 
-Grouped by single phones (without suffixes), variance in the differences is less pronounced, though some trends emerge; plosives and fricatives all cluster towards the bottom end of the log energy measure indicating louder spontaneous phones.
 For the phonemes for which all three variants are well represented in the data, by assessing the distance between phone variants and their averages, we gain a sense of how important the phoneme's position within the word is towards its acoustic characteristics.
 The data suggests that position-in-word disproportionately affects the acoustics of plosive and fricative phonemes.
 This is unsurprising, as in Indonesian fricatives and plosives at word ends are usually unvoiced.
@@ -386,70 +350,205 @@ On average, spontaneous-dictation distances vary little between group members, w
 \end{tabular}
 \end{table}
 
-Lastly, all segment features were normalized and the 2-dimensional PCA transformation of each phone calculated to get a sense of how they related spatially.
+Lastly, all segment features are grouped into phonemes, normalized, and mapped to 2-dimensional space by PCA transformation to get a sense of how they relate spatially.
 Fig. \ref{phon_pca} shows a 2-dimensional representation of the complete set of features of all common phones, with their distances represented as dashed lines between pairs.
 Although distances between points in a pair are discernible, they often overlap with other phone pairs.
-There is no obvious separation between spontaneous and dictated phones in general using this feature set.
+There is no obvious separation between spontaneous and dictated phones with this feature set.
 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=3.25in]{perphon_dist1}
-    \caption{Differences and positions of dictated-spontaneous phone pairs in 2-D space}
+    \caption{Distances and positions of dictated-spontaneous phone pairs in 2-D space}
 \label{phon_pca}
-\end{figure}
-
-\subsection{Segment Analysis}
-
-General differences in spontaneous and dictated speech are observable from phoneme analysis.
-Though useful for gaining insight as to why an existing model performs poorly, it is practical to be able to separate spontaneous and dictated speech in the absence of linguistic/grammatical information such as phones and (position in) words.
-In the subsequent sections we shift the focus away from phones and the exploration of overarching differences between spontaneous and dictated speech, towards "anonymous" segments and the task of classifying spontaneous and dictated utterances. 
-
-Based on insight from the analysis of phones in the previous section, a variation of the feature extraction pipeline is implemented whereby for each segment, in addition to the previous features, the difference in features against the preceding segment, henceforth "delta segments", are also extracted.
-The purpose of these features is to embed local temporal information at the segment level.
-
-To evaluate the feasibility of the feature set the segment data is first grouped into utterances and the average duration of spontaneous and dictated segments calculated.
-The duration and intensity of spontaneous segments vary widely as compared to dictated speech; the standard deviation in duration and intensity in the examined corpus is an order of magnitude larger for spontaneous speech as compared to dictated.
-
-As in the previous section, frame features are first averaged over segments using the full acoustic feature set described in the previous section.
-
-The process is continued with bottom-up procedure.
-Each ensemble in the system votes the label class.
-This is done by choosing a class that has maximum support, total weight of classifiers that predict class $y$.
-The voting rule is formalized by
-\[\hat{y} = \argmax_y \sum_{c \in C \rightarrow y} w_c\]
-where $\hat{y}$ is the ensemble result of label class, $C \rightarrow y$ is classifiers that predict $y$, and $w_c$ is the weight of the classifier.
-And then, the result of each ensemble is combined to make one multilabel class of the document.
-
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=3.2in]{nseg_per_utt_bw}
-\caption{Number of members of each gender for each dialect}
-\label{demographics1}
 \end{figure}
 
 \section{Utterance Classification}
 
+General differences in spontaneous and dictated speech are observable from phoneme analysis.
+Though useful for gaining insight as to why an existing model performs poorly, it would be practical to separate spontaneous and dictated speech in the absence of linguistic/grammatical information such as phones and (position in) words.
+In the subsequent sections we shift the focus away from phones and the exploration of overarching differences between spontaneous and dictated speech, towards "anonymous" segments and the task of classifying spontaneous and dictated utterances.
 
-\section{Results and Analysis}
+\subsection{Segment Analysis}
+
+Intuitively many spontaneous speech traits, such as disfluency and filled pauses, result in less constant speech rates as compared to read speech, with long segments followed by a quick succession of short segments.
+In order to emulate this, a variation of the feature extraction pipeline is implemented whereby for each segment, in addition to the acoustic features, the difference in features against the preceeding segment, henceforth "delta segments", are also extracted.
+In a manner similar to that of "delta-delta" MFCC features, the delta-delta segment features are also extracted.
+The purpose of these features is to embed local temporal information at the segment level.
+The full modified feature set is 264 features long, with both the averages and standard deviations taken for all segment features.
+Table \ref{seg_feats} shows the complete list of segment acoustic features.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+\caption{Modified segment-level features}
+\label{seg_feats}
+\centering
+\begin{tabular}{l|r|r|r|r|r|r|}
+    \cline{2-7}
+    {} & \multicolumn{2}{|c|}{Segment}
+    & \multicolumn{2}{|c|}{$\Delta$Segment}
+    & \multicolumn{2}{|c|}{$\Delta\Delta$ Segment} \\
+    \cline{2-7}
+    {} & Mean & Std & Mean & Std & Mean & Std \\
+    \hline
+    \multicolumn{1}{|l|}{Duration} & 1 & 1 & 1 & 1 & 1 & 1 \\
+    \hline
+    \multicolumn{1}{|l|}{Log energy} & 3 & 3 & 3 & 3 & 3 & 3 \\
+    \hline    
+    \multicolumn{1}{|l|}{Cepstral} & 36 & 36 & 36 & 36 & 36 & 36 \\
+    \hline
+    \multicolumn{1}{|l|}{Formants} & 4 & 4 & 4 & 4 & 4 & 4 \\
+    \hline
+\end{tabular}
+\end{table}
+
+As in the previous section, the formant and MFCC frame features are first averaged over segments.
+Subsequently, the segment durations are taken, and all three components averaged over the length of the utterance.
+In addition to the average, the standard deviation is also computed.
+At the same time, the difference in duration, formant, and MFCC values between the currently evaluated segment and the one immediately preceeding it is calculated and the average and deviation over the utterance computed as the delta segment.
+This is done once again to obtain the delta-delta segments.
+In Fig. \ref{pca_delseg}, we map a sample of the utterances extracted this way into two dimensional space by Principle Component Analysis (PCA).
+Although there is significant overlap in regions, the centers of each are relatively distinct, and analysis in higher dimensions may 
+yield results.
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=3.2in]{pca}
-\caption{Number of members of each gender for each dialect}
-\label{demographics1}
+\includegraphics[width=3.25in]{pca}
+    \caption{Utterance samples in 2-D space}
+\label{pca_delseg}
 \end{figure}
+
+\subsection{Machine Learning and Experimentation}
+
+An appropriate method to separate spontaneous speech is required.
+As delta/delta-delta segments encode temporal information indirectly, it is difficult to utilize a sequence-sensitive method such as a Markov Process.
+Hence, general approaches such as ensemble methods, Support Vector Machines (SVM), and logistic regression are considered instead.
+
+Ensemble methods employ a large number of weak classifiers built on a particular learning algorithm and combine their predictions in order to improve generalizability and robustness.
+A random forest is similar to a classification tree, differing in the branching behavior.
+While in decision/classification tree learning the best predictor (the one that most separates the data) is taken, in random forests a random sample of the predictors is taken instead, and the best split chosen from it \cite{liaw}.
+
+A training pipeline is built utilizing the Python scientific stack, with feature extraction and data analysis methods built on Pandas and cross validation, classification, and evaluation provided by Scikit-Learn \cite{sklearn}.
+Instead of processing data iteratively, the dataset is processed in parallel utilizing the distributed capabilities of Dask and Pandas.
+
+\section{Results and Analysis}
+
+An equal number of positive (spontaneous) and negative (read) utterances are sampled and trained on a number of classifiers.
+The initial classification results, evaluated by average accuracy, F1 scores, and their respective standard deviations over ten folds, are shown in Table \ref{init_results}.
+The classifiers considered here are Stochastic Gradient Descent (SGD) classfiers utilizing the Support Vector Machine (SVM) and logistic regression (Log) loss functions, resepectively, and ensemble methods consisting of random forest (R.Forest) and gradient boosting (G.Boost) classification.
+Ten-fold cross validation on shuffled data is used throughout, with the full feature set utilized to obtain the initial results.
+
+\begin{table}[!htb]
+\renewcommand{\arraystretch}{1.3}
+    \caption{Initial classification results}
+\label{init_results}
+\centering
+\begin{tabular}{l|rr|rr}
+    {} & \multicolumn{2}{|c|}{Accuracy} &
+    \multicolumn{2}{|c}{F1 score} \\
+    {} & Mean & Std & Mean & Std \\
+    \hline
+    SVM &  0.906142 &  0.012277 &  0.906234 &  0.015051 \\
+    Log &  0.907956 &  0.007953 &  0.907332 &  0.010498 \\
+    R.Forest &  0.928603 &  0.008885 &  0.931077 &  0.007835 \\
+    G.Boost &  0.939792 &  0.010555 &  0.938142 &  0.008998 \\
+\end{tabular}
+\end{table}
+
+The nearly identical accuracy and F1 scores for each method indicates that classification accuracy between spontaneous and dictated speech is nearly equal.
+However, upon closer inspection classification results are consistently worse for spontaneous speech.
+This is to be expected given the higher variability of spontaneous speech and given that training was conducted on equal amounts of spontaneous and dictated data.
+On the other hand, this should be somewhat offset by the larger average number of segments per utterance for spontaneous speech in the corpus.
+
+Fig. \ref{hit_rate} displays the "hit rate" of the random forest classifier trained previously.
+This is the squared ratio between the number of hits (correct predictions) and misses (incorrect predictions) given the number of segments in an utterance.
+Similar results were achieved with the other classifiers.
+In general, longer utterances produce higher hit rates, indicating classification success.
+It must be noted that utterance length itself should not be and is not used as a feature, as the length of read utterances are predicated during the design of the prepared text and hence not necessarily indicative of any real world differences between spontaneous and read speech.
+Still, given the large difference in the number of segments per utterance between read and spontaneous speech in this particular corpus, there is the danger that results will not generalize in real-world cases.
+Further studies with different datasets must be conducted to investigate the applicability of these findings.
 
 \begin{figure}[!htb]
 \centering
 \includegraphics[width=3.2in]{hitrate}
-\caption{Number of members of each gender for each dialect}
-\label{demographics1}
+    \caption{Number of hits and misses against utterance length}
+\label{hit_rate}
 \end{figure}
 
-\section{Conclusion and further works}
+The random forest classifier, possessing the lowest standard deviation of all tested methods, is further tweaked.
+Parameter tuning is done by first extracting the relative importance of the features utilized previously.
+The relative importance of a feature measures the fraction of all training examples classified by it.
+Of the initial training examples, 44.7\% of the utterances were classified by the six durational and eighteen log energy features, contributing 24.370\%, 9.725\%, 7.0291\%, and 4.8284\% respectively.
+Training on the reduced feature set leads to a very slight improvement in accuracy (93.27\%) and F1 scores (93.23\%) and a large reduction in training times.
+On the reduced feature set, the most relatively important features are the average delta and delta-delta segment duration features at 17.2\% and 14.8\% respectively, followed by the average delta segment log energy at 7.7\% and deviation delta segment duration at 7.0\%.
+Iteratively combining the remaining features and re-training the classifier lead to no further accuracy gains.
 
+\section{Conclusion and future works}
+
+There are distinguishable differences in the acoustic characteristics of Indonesian phonemes between spontaneous and read speech.
+Measured by phoneme duration, log energy levels, and occurence distribution, there are observable differences in many common vowels and also plosives and fricatives.
+Exploring methods to better represent these phonemes in training data, both in terms of occurence frequency and acoustic characterisitics, may improve speech recognition performance.
+In the future, a method to suggest improvements to the existing corpus building process based on these findings would be beneficial.
+
+Preliminary results suggest that delta and delta-delta segment information are promising features in the classification of utterances into spontaneous and dictated Indonesian speech.
+On a cross-validated training set, F1 scores of 93.23\% were achieved on a random forest classifier utilizing a feature set consisting of 24 values; the averages and deviations of segment duration and energy, delta segment duration and energy, and delta-delta segment duration and engery.
+Classification results above 90\% were achieved across all tested classifiers.
+Further research is needed to determine if this holds true for other datasets and in different acoustic conditions.
+If robust, this approach may be useful for multi-class classification tasks such as dialect and speaking style classification, or as a front-end to switch between various specialized back-end models.
+
+\section*{Acknowledgements}
+
+This research is partially supported by “Riset Unggulan
+Perguruan Tinggi Kemenristekdikti” (University
+Distinguished Research) and is part of a larger project titled
+“Pengembangan Perangkat Lunak Perisalah Rapat dengan
+Memanfaatkan Teknologi Pengenal Ucapan, Mesin Translasi,
+dan Peringkas Otomatis” (Development of Meeting Speech
+Transcriber Using Speech Recognition, Machine Translation,
+and Automatic Summarizer Technology). We also would like
+to thank PT INTI, Bandung, Indonesia for the utilization of
+the speech corpus presented in this research.
 
 \begin{thebibliography}{1}
+
+\bibitem{hoesen}
+D.~Hoesen, C.~Satriawan, D.P.~Lestari, M.L.~Khodra,
+    "Toward Robust Indonesian Speech Recognition with Spontaneous-speech Adapted Acoustic Models,"
+    SLTU-2016 5th Workshop on Spoken Language Technologies for under-resourced languages, 2016.
+
+\bibitem{lestari}
+D.P.~Lestari, K.~Iwano, S.~Furui,
+    "A large vocabulary continuous speech recognition system for Indonesian language,"
+    Proc. 15th Indonesian Scientific Conference in Japan, 2006.
+
+\bibitem{barik}
+H.C.~Barik, 
+    "Cross-linguistic study of temporal characteristics of different types of speech material,"
+    Language and Speech 20, pp. 116-126, 1977.
+
+\bibitem{blaauw}
+E.~Blaauw,
+    "The contribution of prosodic boundary markers to the perceptual difference between read and spontaneous speech,"
+    Speech Communications 14(4), pp. 359-375, 1995.
+
+\bibitem{umeda}
+N.~Umeda, K.~Wallace, K.~Horna,
+    "Usage of words and sentence structures in spontaneous versus text material,"
+    Proc. ICSLP vol.1, pp. 759-762, 1992.
+
+\bibitem{lestari2}
+D.P.~Lestari, A.~Irfani,
+    "Acoustic and Language Model Adaptation for Indonesian Spontaneous Speech Recognition,"
+    2nd International Conference on Advanced Informatics: Concepts, Theory, and Application (ICAICTA), 2015.
+
+\bibitem{sakti}
+S.~Sakti et al,
+    "Development of Indonesian large vocabulary continuous speech recognition system with A-STAR project,"
+    Proc. of the Workshop on TCAST, pp. 19, 2008.
+
+\bibitem{sani}
+A.~Sani, D.P.~Lestari, A.~Purwarianti,
+    "Filled Pause Detection in Indonesian Spontaneous Speech,"
+    Communications in Computer and Information Science vol. 293, pp. 54-64, 2016.
 
 \bibitem{laan}
 G.P.M.~Laan,
@@ -476,9 +575,15 @@ S.~Furui, M.~Nakamura, T.~Ichiba, K.~Iwano,
 	8th Internation Conference on Text, Speech, and Dialog,
 	Karlovy Vary, 2005.
 
+\bibitem{povey}
+D.~Povey, et al.,
+    "The Kaldi speech recognition toolkit,"
+    IEEE Workshop on ASRU, 2011.
+
 \bibitem{furui2}
 S.~Furui,
-    "Spontaneous Speech Recognition and Summarization",
+    "Recent advances in spontaneous speech recognition and understanding",
+    Proc. IEEE Workshop on Spontaneous Speech Processing and Recognition, pp. 1-6, 2003.
 
 \bibitem{benzeguiba}
 M.~Benzeguiba, R.~DeMori, O.~Deroo, S.~Dupon, T.~Erbes, D.~Jouvet, L.~Fissore, P.~Laface, A.~Mertins, C.~Ris, R.~Rose, V.~Tyagi, C.~Wellekens,
@@ -490,103 +595,25 @@ T.~Asami, R.~Masamura, H.~Masataki, S.~Sakauchi,
     "Read and spontaneous speech classification based on variance of GMM supervectors",
 	Interspeech 2014:2375-2379, 2014.
 
-\bibitem{nakamura2}
+\bibitem{nakamura}
 M.~Nakamura, I.~Koji, S.~Furui,
     "Differences between acoustic characteristics of spontaneous and read speech and their effects on speech recognition performance",
     Computer Speech and Language 22(2): 171-184, 2008.
 
-\bibitem{sebastiani}
-F.~Sebastiani,
-    "Machine learning in automated text categorization,"
-    ACM computing surveys (CSUR) 34.1 (2002): 1-47.
-
-\bibitem{ayu}
-A.~Purwarianti,
-    "A non deterministic Indonesian stemmer,"
-    Electrical Engineering and Informatics (ICEEI),
-    2011 International Conference on. IEEE, 2011.
-
-\bibitem{rahma}
-D.~Rahmawati and M.L.~Khodra,
-    "Automatic multilabel classification for Indonesian news articles,"
-    Advanced Informatics: Concepts, Theory and Applications (ICAICTA),
-    2015 2nd International Conference on. IEEE, 2015.
-
-\bibitem{calandra}
-R.~Calandra, et al.,
-    "Learning deep belief networks from non-stationary streams,"
-    Artificial Neural Networks and Machine Learning–ICANN 2012,
-    Springer Berlin Heidelberg, 2012, 379-386.
-
-\bibitem{muhlbaier}
-M.D.~Muhlbaier and R.~Polikar,
-    "An ensemble approach for incremental learning in nonstationary environments,"
-    Multiple classifier systems, Springer Berlin Heidelberg, 2007, 490-500.
-
-\bibitem{wang}
-H.~Wang, F.~Wei, P.~Yu, and J.~Han,
-    "Mining concept-drifting data streams using ensemble classifiers,"
-    In Proceedings of the ninth ACM SIGKDD international conference on Knowledge discovery and data mining,
-    pp. 226-235, ACM, 2003.
-
-\bibitem{street}
-W.~Street and Y.Kim,
-    "A streaming ensemble algorithm (SEA) for large-scale classification,"
-    Proceedings of the seventh ACM SIGKDD international conference on Knowledge discovery and data mining,
-    ACM, 2001.
-
-\bibitem{zang}
-W.~Zang, et al.,
-    "Comparative study between incremental and ensemble learning on data streams: case study."
-    Journal Of Big Data 1.1 (2014): 1-16.
-
-\bibitem{tsoumakas}
-G.~Tsoumakas, I.~Katakis, and I.~Vlahavas,
-    "Mining multi-label data,"
-    in Data mining and knowledge discovery handbook,
-    Springer, 2010, pp. 667–685.
-
-\bibitem{prajapati}
-P.~Prajapati, A.~Thakkar, and A.~Ganatra,
-    "A Survey and Current Research Challenges in Multi-Label Classification Methods,"
-    Int. J. Soft Comput., vol. 2, 2012.
-
-\bibitem{demb}
-K.~Dembczynski, W.~Waegeman, W.~Cheng, and E.~Hüllermeier,
-    "On label dependence in multi-label classification,"
-    in Workshop proceedings of learning from multi-label data,
-    2010, pp. 5–12.
-
-\bibitem{dharmadhikari}
-S.C.~Dharmadhikari, M.~Ingle, and P.~Kulkarni,
-    "A comparative analysis of supervised multi-label text classification methods,"
-    2011.
-
-\bibitem{zhang}
-M.L.~Zhang and Z.H.~Zhou,
-    "ML-KNN: A lazy learning approach to multi-label learning,"
-    Pattern Recognit., vol. 40, no. 7, pp. 2038–2048, 2007.
-
-\bibitem{santos}
-A.~Santos, A.~Canuto, and A.~Neto,
-    "A comparative analysis of classification methods to multi-label tasks in different application domains,"
-    Int. J. Comput. Inform. Syst. Indust. Manag. Appl, vol. 3,
-    pp. 218–227, 2011.
-
-\bibitem{cherman}
-E.A.~Cherman, M.C.~Monard, and J.~Metz,
-    "Multi-label problem transformation methods: a case study,"
-    CLEI Electron. J., vol. 14, no. 1, p. 4, 2011.
-
-\bibitem{tala}
-F.Z.~Tala,
-    "A study of stemming effects on information retrieval in Bahasa Indonesia,"
-    Institute for Logic, Language and Computation Universeit Van Amsterdam (2003).
+\bibitem{scharenborg}
+O.~Scharenborg, V.~Wan, M.~Ernestus
+    "Unsupervised speech segmentation: An analysis of the hypothesized phone boundaries,"
+    Journal of the Acoustical Society of America 127:1084-1095, 2010.
 
 \bibitem{sklearn}
 F.~Pedregosa et al.,
     "Scikit-learn: Machine learning in Python,"
     The Journal of Machine Learning Research 12 (2011): 2825-2830.
+
+\bibitem{liaw}
+A.~Liaw, M.~Weiner,
+    "Classification and Regression by randomForest,"
+    R News 2(3), 18-22, 2002.
 
 \end{thebibliography}
 
@@ -703,4 +730,5 @@ F.~Pedregosa et al.,
 
 % that's all folks
 \end{document}
+
 

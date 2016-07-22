@@ -379,47 +379,59 @@ def viewPerPhone(dfp, attr=None):
         dfpp = pd.DataFrame([np.mean(dfp.ix[p, 4:].values, axis=0) for p in phones], index=phones, columns=dfp.columns[4:])
     return dfpp
 
-def classify(dfin, clf='svm', ret=False):
+def classify(data, lbl, clf='svm', sample=False, ret=False, plot=False, scoring='f1'):
     from sklearn.cross_validation import KFold
-    from sklearn.metrics import f1_score
+    from sklearn.cross_validation import cross_val_score
+    #from sklearn.metrics import f1_score
 
     if clf == 'svm':
         from sklearn.linear_model import SGDClassifier
-        clf = SGDClassifier(loss='squared_hinge', penalty='l1')
-    elif clf == 'nb':
-        from sklearn.naive_bayes import MultinomialNB
-        clf = MultinomialNB()
+        clf = SGDClassifier(loss='hinge', penalty='l1', n_iter=100)
     elif clf == 'log':
         from sklearn.linear_model import SGDClassifier
-        clf = SGDClassifier(loss='log', penalty='l2')
+        clf = SGDClassifier(loss='log', penalty='l1', n_iter=100)
+    # ensemble methods
+    elif clf == 'rf':
+        from sklearn.ensemble import RandomForestClassifier
+        clf = RandomForestClassifier(n_estimators=25, max_depth=None, min_samples_split=1, n_jobs=4)
+    elif clf == 'gb':
+        from sklearn.ensemble import GradientBoostingClassifier
+        clf = GradientBoostingClassifier(n_estimators=25, learning_rate=1.0)
 
-    df = dfin.dropna()
-    kf = KFold(len(df), n_folds=10, shuffle=True)
-    scores = []
+    df = data.dropna()
+    if sample:
+        dfs = df.loc[lbl[lbl == True].index]
+        dfr = df.loc[lbl[lbl == False].index].sample(len(dfs))
+        df = pd.concat((dfs, dfr))
+        lbl = lbl[df.index]
+        if plot:
+            import plots
+            plots.scatter2d(df)
+
+    kf = KFold(len(df), n_folds=10, shuffle=True, random_state=1)
+    if ret:
+        scores = cross_val_score(clf, df, lbl, scoring=scoring, cv=kf, n_jobs=4)
+        print(scores)
+        return scores
+
     misses = []
+    wrongs = []
+    scores = []
     for r, s in kf:
         dfr = df.iloc[r]
         dfs = df.iloc[s]
-        clf.fit(dfr.iloc[:, :-1].values, dfr.lbl.values)
-        pre = clf.predict(dfs.iloc[:, :-1].values)
-        res = pre != dfs.lbl
-        mis = res.values
-        
-        misses.append(dfs.iloc[(np.argwhere(mis)).flatten()])
-        scores.append(res)
-        #scores.append(f1_score(dfs.lbl.values, clf.predict(dfs.iloc[:, :-1].values) == dfs.lbl.values))
+        clf.fit(dfr.values, lbl[r])
+        predict = clf.predict(dfs.values)
+        score = predict != lbl[s]
+        scores.append(100. - 100.*len(np.argwhere(score))/len(dfs))
+        wrongs.append(dfs.iloc[(np.argwhere(score.values)).flatten()])
+        misses.append(score)
 
     misses = pd.concat(misses)
-    scores = pd.concat(scores)
-    misscount = (100*(misses.groupby([misses.lbl]).count().iloc[:,0].astype(float)/df.groupby([df.lbl]).count().iloc[:,0]).values).tolist()
-    print(misscount+[100-100*np.mean(scores), np.var(scores)])
-    #return misscount+[100-100*np.mean(scores), np.var(scores)]
-    if ret:
-        return misses, scores
+    wrongs = pd.concat(wrongs)
+    return misses, wrongs, scores, clf
 
 def getAcFeats(df):
-    df.index = df.spkr
-    df.drop(['spkr'], axis=1, inplace=True)
     def normalize(x):
         return (x - x.mean())/x.std()
 
@@ -431,19 +443,36 @@ def getAcFeats(df):
 
     dfg = df.groupby(df.index)[df.columns[1:-1]]
     # take normalized mean and variance of segments per utterance
-    dfm = dfg.mean().apply(normalize)
-    dfv = dfg.var().apply(normalize)
+    dfm = dfg.mean()
+    dfv = dfg.std()
 
     # take normalized mean and variance of differences between consecutive
-    # segments per utterance
-    dfd = dfg.transform(lambda x:x.diff()).groupby(df.index)
-    dfdm = dfd.mean().apply(normalize)
-    dfdv = dfd.var().apply(normalize)
+    # segments per utterance or "delta segments"
+    ds = dfg.transform(lambda x:x.diff()).groupby(df.index)
+    dsm = ds.mean()
+    dsv = ds.std()
 
-    fe = pd.concat((dfm, dfv, dfdm, dfdv, lbl), axis=1)
+    # take delta delta segments
+    dds = ds.transform(lambda x:x.diff()).groupby(df.index)
+    ddsm = dds.mean()
+    ddsv = dds.std()
+
+    fe = pd.concat((dfm, dfv, dsm, dsv, ddsm, ddsv), axis=1)
+    fe[:] = (fe - fe.mean())/fe.std()
+    fe['lbl'] = lbl
     fe.dropna(inplace=True)
 
     return fe
+
+def trainAll(fe):
+    scores = []
+    f1s = []
+    for c in ['svm', 'log', 'rf', 'gb']:
+        f1 = classify(fe.iloc[:,:-1], fe.lbl, clf=c, sample=True, scoring='f1', ret=True)
+        score = classify(fe.iloc[:,:-1], fe.lbl, clf=c, sample=True, scoring='accuracy', ret=True)
+        f1s.append([np.mean(f1), np.std(f1)*2])
+        scores.append([np.mean(score), np.std(score)])
+    return scores, f1s
 
 def predictSponRead(attrs):
     from sklearn.linear_model import SGDClassifier
