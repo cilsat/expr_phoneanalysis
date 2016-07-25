@@ -333,6 +333,33 @@ def procAliMfc(args):
 
     return dfspk
 
+def alignParallel(chunk):
+    ali = h5py.File('ali-2.0.hdf')
+    mfc = h5py.File('mfc-2.0.hdf')
+    aligned = []
+    for f in chunk:
+        a = ali[f].value
+        if a.ndim == 1: continue
+        m = mfc[f].value
+        e = a[:,0]+a[:,1]
+        ma = np.array([m[a[n,0]:e[n]].mean(axis=0) for n in xrange(a.shape[0]) if m.size > 0])
+        aligned.append(pd.DataFrame(np.hstack((a, ma)), index=[f]*a.shape[0]))
+    ali.close()
+    mfc.close()
+    return pd.concat(aligned)
+
+def alignMFCC(alifile='ali-2.0.hdf', mfcfile='mfc-2.0.hdf', chunksize=1000):
+    ali = h5py.File(alifile)
+    mfc = h5py.File(mfcfile)
+    files = ali.keys()
+    chunks = [files[i:i+chunksize] for i in xrange(0, len(files), chunksize)]
+    ali.close()
+    mfc.close()
+
+    pool = mp.Pool(mp.cpu_count())
+    aligned = pool.map(alignParallel, [c for c in chunks])
+    return pd.concat(aligned)
+
 def calcFeats(alifile, mfcfile, phonfile, perphone=True):
     try:
         ali = h5py.File(alifile)
