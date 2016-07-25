@@ -358,6 +358,9 @@ def alignMFCC(alifile='ali-2.0.hdf', mfcfile='mfc-2.0.hdf', chunksize=1000):
 
     pool = mp.Pool(mp.cpu_count())
     aligned = pool.map(alignParallel, [c for c in chunks])
+    pool.close()
+    pool.terminate()
+    pool.join()
     return pd.concat(aligned)
 
 def calcFeats(alifile, mfcfile, phonfile, perphone=True):
