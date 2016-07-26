@@ -342,7 +342,8 @@ def alignParallel(chunk):
         if a.ndim == 1: continue
         m = mfc[f].value
         e = a[:,0]+a[:,1]
-        ma = np.array([m[a[n,0]:e[n]].mean(axis=0) for n in xrange(a.shape[0]) if m.size > 0])
+        ma = [m[a[n,0]:e[n]] for n in xrange(a.shape[0]) if m.size > 0]
+        ma = np.array([np.hstack((md.mean(axis=0), np.diff(md, axis=0).mean(axis=0), np.diff(md, n=2, axis=0).mean(axis=0))) for md in ma])
         aligned.append(pd.DataFrame(np.hstack((a, ma)), index=[f]*a.shape[0]))
     ali.close()
     mfc.close()
@@ -430,8 +431,8 @@ def classify(data, lbl, clf='svm', sample=False, ret=False, plot=False, scoring=
 
     df = data.dropna()
     if sample:
-        dfs = df.loc[lbl[lbl == True].index]
-        dfr = df.loc[lbl[lbl == False].index].sample(len(dfs))
+        dfs = df.loc[lbl[lbl == True].index].sample(1000)
+        dfr = df.loc[lbl[lbl == False].index].sample(1000)
         df = pd.concat((dfs, dfr))
         lbl = lbl[df.index]
         if plot:
@@ -461,20 +462,44 @@ def classify(data, lbl, clf='svm', sample=False, ret=False, plot=False, scoring=
     wrongs = pd.concat(wrongs)
     return misses, wrongs, scores, clf
 
+def extractParallel(chunk):
+    s = chunk.groupby(chunk.index)
+    ds = s.transform(lambda x:x.diff()).groupby(chunk.index)
+    dds = ds.transform(lambda x:x.diff()).groupby(chunk.index)
+
+    smean = s.mean()
+    sdev = s.std()
+    dsmean = ds.mean()
+    dsdev = ds.std()
+    ddsmean = dds.mean()
+    ddsdev = dds.std()
+    
+    feat = pd.concat((smean, sdev, dsmean, dsdev, ddsmean, ddsdev), axis=1)
+    return feat
+
+def extractFeats(df, chunksize=1000):
+    files = df.index.unique()
+    chunks = [files[i:i+chunksize] for i in xrange(0, len(files), chunksize)]
+
+    pool = mp.Pool(mp.cpu_count())
+    feats = pool.map(extractParallel, [df.loc[c] for c in chunks])
+    pool.close()
+    pool.terminate()
+    pool.join()
+    return pd.concat(feats)
+
 def getAcFeats(df):
     def normalize(x):
         return (x - x.mean())/x.std()
 
-    dfg = df.groupby(df.index)
-    lbl = dfg.lbl.mean()
+    dfg = df.groupby(df.index).transform(normalize).groupby(df.index)
 
     # calculate speed of pronunciatioin
     #spd = dfg.dur.count().astype(float)/dfg.dur.sum()
 
-    dfg = df.groupby(df.index)[df.columns[1:-1]]
     # take normalized mean and variance of segments per utterance
     dfm = dfg.mean()
-    dfv = dfg.std()
+    #dfv = dfg.std()
 
     # take normalized mean and variance of differences between consecutive
     # segments per utterance or "delta segments"
@@ -487,9 +512,7 @@ def getAcFeats(df):
     ddsm = dds.mean()
     ddsv = dds.std()
 
-    fe = pd.concat((dfm, dfv, dsm, dsv, ddsm, ddsv), axis=1)
-    fe[:] = (fe - fe.mean())/fe.std()
-    fe['lbl'] = lbl
+    fe = pd.concat((dfm, dsm, dsv, ddsm, ddsv), axis=1)
     fe.dropna(inplace=True)
 
     return fe
