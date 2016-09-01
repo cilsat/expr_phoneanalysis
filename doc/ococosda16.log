@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.6.20)  22 JUL 2016 09:09
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian) (preloaded format=pdflatex 2016.6.20)  31 AUG 2016 23:18
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -257,43 +257,66 @@ File: ot1phv.fd 2001/06/04 scalable font definitions for OT1/phv.
 (/usr/share/texlive/texmf-dist/tex/latex/base/ot1enc.def
 File: ot1enc.def 2005/09/27 v1.99g Standard LaTeX file
 LaTeX Font Info:    Redeclaring font encoding OT1 on input line 48.
-))) (./ococosda16.aux)
+)))
+(/usr/share/texlive/texmf-dist/tex/latex/sttools/flushend.sty
+Package: flushend 2015/04/14 v3.1 Balancing columns in twocolumn mode
+\flushend@@lastskip@a=\skip50
+\flushend@@lastskip@b=\skip51
+\flushend@@lastskip@c=\skip52
+\flushend@@penalty@a=\count116
+\flushend@@lastkern@a=\dimen137
+\var@@temp@spread=\dimen138
+\var@@temp@a=\dimen139
+\flushend@@page@rule=\dimen140
+\flushend@@varbox@a=\box32
+\flushend@@varbox@c=\box33
+\flushend@@tempbox@a=\box34
+\flushend@@tempbox@c=\box35
+\@viper=\box36
+\hold@viper=\box37
+\atColsBreak=\toks24
+\atColsEnd=\toks25
+
+(/usr/share/texlive/texmf-dist/tex/latex/etoolbox/etoolbox.sty
+Package: etoolbox 2015/08/02 v2.2a e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count117
+))
+(./ococosda16.aux)
 \openout1 = `ococosda16.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 18.
-LaTeX Font Info:    ... okay on input line 18.
-LaTeX Font Info:    Checking defaults for T3/cmr/m/n on input line 18.
-LaTeX Font Info:    Try loading font information for T3+cmr on input line 18.
-
-(/usr/share/texmf/tex/latex/tipa/t3cmr.fd
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 19.
+LaTeX Font Info:    ... okay on input line 19.
+LaTeX Font Info:    Checking defaults for T3/cmr/m/n on input line 19.
+LaTeX Font Info:    Try loading font information for T3+cmr on input line 19.
+ (/usr/share/texmf/tex/latex/tipa/t3cmr.fd
 File: t3cmr.fd 2001/12/31 TIPA font definitions
 )
-LaTeX Font Info:    ... okay on input line 18.
+LaTeX Font Info:    ... okay on input line 19.
 
 -- Lines per column: 56 (exact).
 (/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count116
-\scratchdimen=\dimen137
-\scratchbox=\box32
-\nofMPsegments=\count117
-\nofMParguments=\count118
-\everyMPshowfont=\toks24
-\MPscratchCnt=\count119
-\MPscratchDim=\dimen138
-\MPnumerator=\count120
-\makeMPintoPDFobject=\count121
-\everyMPtoPDFconversion=\toks25
+\scratchcounter=\count118
+\scratchdimen=\dimen141
+\scratchbox=\box38
+\nofMPsegments=\count119
+\nofMParguments=\count120
+\everyMPshowfont=\toks26
+\MPscratchCnt=\count121
+\MPscratchDim=\dimen142
+\MPnumerator=\count122
+\makeMPintoPDFobject=\count123
+\everyMPtoPDFconversion=\toks27
 ) (/usr/share/texlive/texmf-dist/tex/generic/oberdiek/pdftexcmds.sty
 Package: pdftexcmds 2011/11/29 v0.20 Utility functions of pdfTeX for LuaTeX (HO
 )
@@ -342,143 +365,55 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 36.
-
-
-LaTeX Warning: Citation `furui2' on page 1 undefined on input line 57.
-
-
-LaTeX Warning: Citation `hoesen' on page 1 undefined on input line 60.
-
-
-LaTeX Warning: Citation `furui2' on page 1 undefined on input line 64.
-
-
-LaTeX Warning: Citation `nakamura' on page 1 undefined on input line 64.
-
-
-LaTeX Warning: Citation `dellwo' on page 1 undefined on input line 66.
-
-
-LaTeX Warning: Citation `barik' on page 1 undefined on input line 84.
-
-
-LaTeX Warning: Citation `blauuw' on page 1 undefined on input line 84.
-
-
-LaTeX Warning: Citation `umeda' on page 1 undefined on input line 84.
-
-
-LaTeX Warning: Citation `nakamura' on page 1 undefined on input line 86.
-
-
-LaTeX Warning: Citation `furui1' on page 1 undefined on input line 87.
-
-
-LaTeX Warning: Citation `asami' on page 1 undefined on input line 89.
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 37.
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
 
 ]
-
-LaTeX Warning: Citation `laan' on page 2 undefined on input line 92.
-
-
-LaTeX Warning: Citation `silverman' on page 2 undefined on input line 93.
-
-
-LaTeX Warning: Citation `liu' on page 2 undefined on input line 94.
-
-
-LaTeX Warning: Citation `lestari' on page 2 undefined on input line 96.
-
-
-LaTeX Warning: Citation `sakti' on page 2 undefined on input line 96.
-
-
-LaTeX Warning: Citation `lestari2' on page 2 undefined on input line 98.
-
-
-LaTeX Warning: Citation `sani' on page 2 undefined on input line 99.
-
-
-LaTeX Warning: Citation `scharenborg' on page 2 undefined on input line 102.
-
-
-LaTeX Warning: Citation `povey' on page 2 undefined on input line 103.
-
-
-LaTeX Warning: Reference `demographics1' on page 2 undefined on input line 118.
-
-
 <demograph.png, id=10, 578.16pt x 433.62pt>
 File: demograph.png Graphic file (type png)
  <use demograph.png>
-Package pdftex.def Info: demograph.png used on input line 124.
+Package pdftex.def Info: demograph.png used on input line 125.
 (pdftex.def)             Requested size: 238.49121pt x 178.86383pt.
+LaTeX Font Info:    Try loading font information for T3+ptm on input line 153.
 
-
-LaTeX Warning: Reference `phones' on page 2 undefined on input line 149.
-
-LaTeX Font Info:    Try loading font information for T3+ptm on input line 152.
 (/usr/share/texmf/tex/latex/tipa/t3ptm.fd
 File: t3ptm.fd 2001/12/31 TIPA font definitions
-) [2 <./demograph.png>]
-
-LaTeX Warning: Reference `features' on page 3 undefined on input line 185.
-
-
-LaTeX Warning: Reference `freq_dur_diff' on page 3 undefined on input line 236.
-
-
-[3]
-
-LaTeX Warning: Reference `mfc_frm' on page 4 undefined on input line 285.
-
-
-LaTeX Warning: Reference `group_dist' on page 4 undefined on input line 321.
-
-
-LaTeX Warning: Reference `phon_pca' on page 4 undefined on input line 354.
-
+) [2 <./demograph.png>] [3]
 <perphon_dist1.png, id=22, 469.755pt x 362.0727pt>
 File: perphon_dist1.png Graphic file (type png)
  <use perphon_dist1.png>
-Package pdftex.def Info: perphon_dist1.png used on input line 360.
+Package pdftex.def Info: perphon_dist1.png used on input line 361.
 (pdftex.def)             Requested size: 234.87749pt x 181.0359pt.
 
-[4 <./perphon_dist1.png>]
-
-LaTeX Warning: Reference `seg_feats' on page 5 undefined on input line 378.
-
-
-LaTeX Warning: Reference `pca_delseg' on page 5 undefined on input line 410.
-
-<pca.png, id=29, 477.7047pt x 366.4089pt>
+[4] <pca.png, id=28, 477.7047pt x 366.4089pt>
 File: pca.png Graphic file (type png)
  <use pca.png>
-Package pdftex.def Info: pca.png used on input line 416.
-(pdftex.def)             Requested size: 231.26378pt x 177.38382pt.
-
-
-LaTeX Warning: Citation `liaw' on page 5 undefined on input line 429.
-
-
-LaTeX Warning: Citation `sklearn' on page 5 undefined on input line 431.
-
-
-LaTeX Warning: Reference `init_results' on page 5 undefined on input line 437.
-
-[5 <./pca.png>]
-
-LaTeX Warning: Reference `hit_rate' on page 6 undefined on input line 463.
-
-<hitrate.png, id=34, 494.3268pt x 383.031pt>
+Package pdftex.def Info: pca.png used on input line 417.
+(pdftex.def)             Requested size: 234.87749pt x 180.15134pt.
+ [5 <./perphon_dist1.png> <./pca.png>] <hitrate.png, id=34, 494.3268pt x 383.03
+1pt>
 File: hitrate.png Graphic file (type png)
- <use hitrate.png>
-Package pdftex.def Info: hitrate.png used on input line 473.
+
+<use hitrate.png>
+Package pdftex.def Info: hitrate.png used on input line 474.
 (pdftex.def)             Requested size: 231.26378pt x 179.19466pt.
+
+Underfull \vbox (badness 1005) has occurred while \output is active []
+
+Missing character: There is no ‚ in font ptmr7t!
+Missing character: There is no Ä in font ptmr7t!
+Missing character: There is no ú in font ptmr7t!
+Missing character: There is no ‚ in font ptmr7t!
+Missing character: There is no Ä in font ptmr7t!
+Missing character: There is no ù in font ptmr7t!
+Missing character: There is no ‚ in font ptmr7t!
+Missing character: There is no Ä in font ptmr7t!
+Missing character: There is no ú in font ptmr7t!
+Missing character: There is no ‚ in font ptmr7t!
+Missing character: There is no Ä in font ptmr7t!
+Missing character: There is no ù in font ptmr7t!
  [6 <./hitrate.png>]
 
 ** Conference Paper **
@@ -491,24 +426,24 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the appropriate paper size.
 
-[7
-
-] (./ococosda16.aux)
-
-LaTeX Warning: There were undefined references.
-
+- LAST -
+Extra skip:6.162pt
+Left:296.84999pt/1.73193pt
+Right:291.0pt/1.41992pt
+Output:296.42499pt
+[7] (./ococosda16.aux)
 
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 4694 strings out of 494953
- 66664 string characters out of 6180977
- 144530 words of memory out of 5000000
- 7912 multiletter control sequences out of 15000+600000
- 43367 words of font info for 86 fonts, out of 8000000 for 9000
+ 5074 strings out of 494953
+ 71687 string characters out of 6180977
+ 154141 words of memory out of 5000000
+ 8285 multiletter control sequences out of 15000+600000
+ 42260 words of font info for 85 fonts, out of 8000000 for 9000
  17 hyphenation exceptions out of 8191
- 37i,13n,27p,351b,327s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 38i,13n,27p,794b,327s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/
@@ -518,7 +453,7 @@ pe1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw
 pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb></usr/share/texmf/fonts/t
 ype1/fkr/tipa/xipa10.pfb>
-Output written on ococosda16.pdf (7 pages, 236896 bytes).
+Output written on ococosda16.pdf (7 pages, 236453 bytes).
 PDF statistics:
  74 PDF objects out of 1000 (max. 8388607)
  47 compressed objects within 1 object stream
